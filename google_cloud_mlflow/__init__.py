@@ -1,1 +1,1 @@
-from ._plugin import *
+from .mlflow_model_deployment_plugin_for_google_cloud_vertex_ai import *

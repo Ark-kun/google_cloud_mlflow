@@ -32,5 +32,7 @@ setuptools.setup(
         "google-cloud-aiplatform>=1.3.0",
         "mlflow~=1.19",
     ],
-    entry_points={"mlflow.deployments": "google_cloud=google_cloud_mlflow"},
+    entry_points={
+        "mlflow.deployments": "google_cloud=google_cloud_mlflow.mlflow_model_deployment_plugin_for_google_cloud_vertex_ai",
+    },
 )
