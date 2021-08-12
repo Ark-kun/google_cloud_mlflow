@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from . import _mlflow_model_gcp_deployment_utils as utils
+from . import _mlflow_model_gcp_deployment_utils as vertex_utils
 from google.protobuf import json_format
 import mlflow
 
@@ -30,13 +30,13 @@ DEFAULT_MACHINE_TYPE="n1-standard-2"
 def _resource_to_mlflow_dict(
     resource: aiplatform.base.VertexAiResourceNoun,
 ) -> Dict[str, Any]:
+    """Converts Vertex AI resource instance to a MLflow dict."""
     # TODO(avolkov): Switch to .to_dict() method when my PR is merged:
     # https://github.com/googleapis/python-aiplatform/pull/588
-    resource_dict = json_format.MessageToDict(
-        resource._gca_resource._pb
-    )  # pylint: disable=protected-access
+    resource_dict = json_format.MessageToDict(resource._gca_resource._pb)  # pylint: disable=protected-access
     # The MLflow documentation seems to imply that the returned dicts
-    # need to have "name" attribute set to MLflow "deployment name", not the internal resource name.
+    # need to have "name" attribute set to MLflow "deployment name", not the
+    # internal resource name.
     # We put MLflow deployment name into Endpoint's display_name
     resource_dict["resource_name"] = resource.resource_name
     resource_dict["name"] = resource.display_name
@@ -66,8 +66,8 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
             name: Unique name to use for deployment. If another deployment exists with the same
                 name, raises a :py:class:`mlflow.exceptions.MlflowException`
             model_uri: URI of model to deploy
-            flavor: (optional) Model flavor to deploy. If unspecified, a default flavor
-                will be chosen.
+            flavor: (optional) The MLflow model flavor to deploy.
+                If unspecified, the default flavor will be chosen.
             config: (optional) Dict containing updated target-specific configuration for the
                 deployment
 
@@ -128,7 +128,7 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
         )
         model_name = config.get("model_resource_name")
         if not model_name:
-            model_name = utils.upload_mlflow_model_to_vertex_ai_models(
+            model_name = vertex_utils.upload_mlflow_model_to_vertex_ai_models(
                 model_uri=model_uri,
                 display_name=name,
                 destination_image_uri=config.get("destination_image_uri"),
@@ -142,13 +142,15 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
                 "google_cloud_mlflow_plugin_version": "0.0.1",
             },
         )
-        deployed_model = endpoint.deploy(
+        endpoint.deploy(
             model=aiplatform.Model(model_name=model_name),
             deployed_model_display_name=name,
             traffic_percentage=100,
-            # Need to always specify the machine type to prevent the following error:
+            # Need to always specify the machine type to prevent this error:
             # InvalidArgument: 400 'automatic_resources' is not supported for Model
-            # The choice between "dedicated_resources" and "automatic_resources" (only supported with AutoML models) is based on the presence of machine_type.
+            # The choice between "dedicated_resources" and "automatic_resources"
+            # (only supported with AutoML models) is based on the presence of
+            # machine_type.
             machine_type=config.get("machine_type", DEFAULT_MACHINE_TYPE),
             min_replica_count=int(config.get("min_replica_count", 1)),
             max_replica_count=int(config.get("max_replica_count", 1)),
@@ -208,11 +210,12 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
     def delete_deployment(self, name: str) -> None:
         """Deletes the deployment.
 
-        Deletes the deployment with name ``name`` from the specified target. Deletion is
-        idempotent (i.e. deletion should not fail if retried on a non-existent deployment).
+        Deletes the deployment with name ``name`` from the specified target.
+        Deletion is idempotent (i.e. deletion does not fail if retried on a
+        non-existent deployment).
 
         Args:
-            name: Name of deployment to delete
+            name: The name of deployment to delete
         """
         deployment_name = name
         # Locate deployment endpoint from MLflow deployment list
