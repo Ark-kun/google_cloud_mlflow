@@ -33,7 +33,11 @@ setuptools.setup(
         "mlflow~=1.19",
     ],
     entry_points={
-        "mlflow.deployments": "google_cloud=google_cloud_mlflow.mlflow_model_deployment_plugin_for_google_cloud_vertex_ai",
-        "mlflow.model_registry_store": "google_cloud=google_cloud_mlflow.mlflow_model_registry_plugin_for_google_cloud_storage",
+        "mlflow.deployments": [
+            "google_cloud=google_cloud_mlflow.mlflow_model_deployment_plugin_for_google_cloud_vertex_ai",
+        ],
+        "mlflow.model_registry_store": [
+            "google_cloud=google_cloud_mlflow.mlflow_model_registry_plugin_for_google_cloud_storage",
+        ],
     },
 )
