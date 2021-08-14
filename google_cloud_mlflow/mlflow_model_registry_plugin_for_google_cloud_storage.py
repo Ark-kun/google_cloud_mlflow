@@ -1,3 +1,5 @@
+"""MLflow Model Registry plugin to allow logging models to Google Cloud Storage."""
+
 import datetime
 from typing import Iterator, List
 
@@ -5,10 +7,10 @@ import google
 from google.cloud import storage
 from google.protobuf import json_format
 import mlflow
-from mlflow.store.entities import paged_list
 from mlflow.entities import model_registry
 from mlflow.entities.model_registry import model_version_stages
 from mlflow.protos import databricks_pb2
+from mlflow.store.entities import paged_list
 from mlflow.utils.search_utils import SearchUtils
 from mlflow.utils.validation import (
     _validate_registered_model_tag,
@@ -73,15 +75,12 @@ class GoogleCloudStorageModelRegistry(
             tags: A list of :py:class:`mlflow.entities.model_registry.RegisteredModelTag`
                 instances associated with this registered model.
             description: Description of the model.
-            name: str:
-            tags: List[model_registry.RegisteredModelTag]:  (Default value = None)
-            description: str:  (Default value = None)
 
         Returns:
             A single object of :py:class:`mlflow.entities.model_registry.RegisteredModel`
             created in the backend.
         """
-        # TODO: Validate that the model does nto exist
+        # TODO(avolkov): Validate that the model does nto exist
         _validate_model_name(name)
         for tag in tags or []:
             _validate_registered_model_tag(tag.key, tag.value)
@@ -95,7 +94,6 @@ class GoogleCloudStorageModelRegistry(
         )
         model_json = json_format.MessageToJson(model.to_proto())
         model_uri = self._get_model_info_file_path(name=name)
-        # storage.Client().bucket(self._bucket).blob(path).upload_from_string(data=model_json)
         storage.Blob.from_string(uri=model_uri).upload_from_string(data=model_json)
         return model
 
@@ -223,23 +221,13 @@ class GoogleCloudStorageModelRegistry(
             that satisfy the search expressions. The pagination token for the next page can be
             obtained via the ``token`` attribute of the object.
         """
-        """Search for model versions in backend that satisfy the filter criteria.
-
-        Args:
-            filter_string: A filter string expression. Currently supports a single filter
-                condition either name of model like ``name = 'model_name'`` or ``run_id = '...'``.
-
-        Returns:
-            PagedList of :py:class:`mlflow.entities.model_registry.ModelVersion`
-            objects.
-        """
         del page_token
         parsed_filters = SearchUtils.parse_filter_for_model_versions(filter_string)
         (
             ordering_key,
             ordering_is_ascending,
         ) = SearchUtils.parse_order_by_for_search_registered_models(order_by)
-        model_versions = self._list_model_versions()
+        model_versions = self._list_model_versions(name=...)
         model_versions = [
             model_version
             for model_version in model_versions
@@ -278,7 +266,7 @@ class GoogleCloudStorageModelRegistry(
             A single :py:class:`mlflow.entities.model_registry.RegisteredModel` object.
         """
         _validate_model_name(name)
-        model_uri = self._get_model_info_file_path(model=name)
+        model_uri = self._get_model_info_file_path(name=name)
         try:
             model_json = storage.Blob.from_string(uri=model_uri).download_as_text()
             model = _json_to_registered_model(model_json)
@@ -300,6 +288,7 @@ class GoogleCloudStorageModelRegistry(
         Args:
             name: Registered model name.
             model: A single :py:class:`mlflow.entities.model_registry.RegisteredModel` object.
+            update_modification_time: Whether to update the modification time
         """
         _validate_model_name(name)
         if update_modification_time:
@@ -443,14 +432,14 @@ class GoogleCloudStorageModelRegistry(
         self._set_model_version(name=name, version=version, model_version=model_version)
 
     def update_model_version(
-        self, name: str, version: str, description: str
+        self, name: str, version: str, description: str,
     ) -> model_registry.ModelVersion:
         """Update metadata associated with a model version in backend.
 
         Args:
-             name: Registered model name.
-             version: Registered model version.
-             description: New model description.
+            name: Registered model name.
+            version: Registered model version.
+            description: New model description.
 
         Returns:
             A single :py:class:`mlflow.entities.model_registry.ModelVersion` object.
@@ -467,11 +456,10 @@ class GoogleCloudStorageModelRegistry(
         Args:
             name: Registered model name.
             version: Registered model version.
-            new_stage: New desired stage for this model version.
+            stage: New desired stage for this model version.
             archive_existing_versions: If this flag is set to ``True``, all existing model
                 versions in the stage will be automically moved to the "archived" stage. Only valid
                 when ``stage`` is ``"staging"`` or ``"production"`` otherwise an error will be raised.
-                stage:
 
         Returns:
               A single :py:class:`mlflow.entities.model_registry.ModelVersion` object.
@@ -566,6 +554,7 @@ class GoogleCloudStorageModelRegistry(
             name: Registered model name.
             version: Registered model version.
             model_version: A :py:class:`mlflow.entities.model_registry.ModelVersion` object.
+            update_modification_time: Whether to update the modification time
 
         Returns:
             None
@@ -618,7 +607,6 @@ class GoogleCloudStorageModelRegistry(
 
         Returns:
             A single URI location that allows reads for downloading.
-
         """
         model_version = self.get_model_version(name, version)
         return model_version.source
@@ -637,7 +625,7 @@ class GoogleCloudStorageModelRegistry(
             objects.
         """
         parsed_filters = SearchUtils.parse_filter_for_model_versions(filter_string)
-        model_versions = self._list_model_versions()
+        model_versions = self._list_model_versions(name=...)
         model_versions = [
             model_version
             for model_version in model_versions
@@ -683,12 +671,12 @@ class GoogleCloudStorageModelRegistry(
         """Delete a tag associated with the model version.
 
         Args:
-          name: Registered model name.
-          version: Registered model version.
-          key: Tag key.
+            name: Registered model name.
+            version: Registered model version.
+            key: Tag key.
 
         Returns:
-          None
+            None
         """
         _validate_tag_name(key)
         model_version = self.get_model_version(name, version)
