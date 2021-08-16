@@ -20,26 +20,23 @@ from mlflow.utils.validation import (
     _validate_tag_name,
 )
 
-MODEL_INFO_FILE_NAME: str = "model_info.json"
-MODEL_VERSION_INFO_FILE_NAME: str = "model_version_info.json"
-LAST_MODEL_VERSION_FILE_NAME: str = "last_model_version"
-
-REALLY_DELETE_MODEL_VERSIONS = False
-
 
 class GoogleCloudStorageModelRegistry(
     mlflow.store.model_registry.abstract_store.AbstractStore
 ):
     """Class for storing Model Registry metadata."""
 
+    _MODEL_INFO_FILE_NAME: str = "model_info.json"
+    _MODEL_VERSION_INFO_FILE_NAME: str = "model_version_info.json"
+    _LAST_MODEL_VERSION_FILE_NAME: str = "last_model_version"
+
+    DELETE_MODEL_VERSIONS_INSTEAD_OF_MARKING_AS_DELETED = False
+
     def __init__(self, base_uri: str):
         if not _validate_base_uri(base_uri):
             raise mlflow.MlflowException(f"Bad base_uri format: {base_uri}")
         base_uri = base_uri.rstrip("/") + "/"
         self._base_uri = base_uri
-        # bucket, path = base_uri[len("gs://") :].split("/", 1)
-        # self._bucket = bucket
-        # self._path_prefix = path
 
     # CRUD API for RegisteredModel objects
 
@@ -48,7 +45,7 @@ class GoogleCloudStorageModelRegistry(
         return self._base_uri + name + "/"
 
     def _get_model_info_file_path(self, name: str) -> str:
-        return self._get_model_dir(name=name) + MODEL_INFO_FILE_NAME
+        return self._get_model_dir(name=name) + self._MODEL_INFO_FILE_NAME
 
     def _get_model_version_dir(self, name: str, version: str) -> str:
         return self._get_model_dir(name=name) + version + "/"
@@ -56,7 +53,7 @@ class GoogleCloudStorageModelRegistry(
     def _get_model_version_info_file_path(self, name: str, version: str) -> str:
         return (
             self._get_model_version_dir(name=name, version=version)
-            + MODEL_VERSION_INFO_FILE_NAME
+            + self._MODEL_VERSION_INFO_FILE_NAME
         )
 
     def _get_model_blob_path(self, name: str, version: str) -> str:
@@ -195,7 +192,7 @@ class GoogleCloudStorageModelRegistry(
         models = [
             _json_to_registered_model(blob.download_as_text())
             for blob in blob_iterator
-            if blob.path.endswith(MODEL_INFO_FILE_NAME)
+            if blob.path.endswith(self._MODEL_INFO_FILE_NAME)
         ]
         return paged_list.PagedList(items=models, token=blob_iterator.next_page_token)
 
@@ -374,7 +371,7 @@ class GoogleCloudStorageModelRegistry(
         """
         _validate_model_name(name)
         model_dir_uri = self._get_model_dir(name=name)
-        last_model_version_file_uri = model_dir_uri + LAST_MODEL_VERSION_FILE_NAME
+        last_model_version_file_uri = model_dir_uri + self._LAST_MODEL_VERSION_FILE_NAME
         last_model_version_file_blob = storage.Blob.from_string(
             uri=last_model_version_file_uri
         )
@@ -432,7 +429,10 @@ class GoogleCloudStorageModelRegistry(
         self._set_model_version(name=name, version=version, model_version=model_version)
 
     def update_model_version(
-        self, name: str, version: str, description: str,
+        self,
+        name: str,
+        version: str,
+        description: str,
     ) -> model_registry.ModelVersion:
         """Update metadata associated with a model version in backend.
 
@@ -501,7 +501,7 @@ class GoogleCloudStorageModelRegistry(
         """
         # Validating that the version is a proper model version
         model_version = self.get_model_version(name=name, version=version)
-        if REALLY_DELETE_MODEL_VERSIONS:
+        if self.DELETE_MODEL_VERSIONS_INSTEAD_OF_MARKING_AS_DELETED:
             model_version_uri = self._get_model_version_info_file_path(
                 name=name, version=version
             )
@@ -591,7 +591,7 @@ class GoogleCloudStorageModelRegistry(
         models = [
             _json_to_registered_model_version(blob.download_as_text())
             for blob in blob_iterator
-            if blob.path.endswith(MODEL_VERSION_INFO_FILE_NAME)
+            if blob.path.endswith(self._MODEL_VERSION_INFO_FILE_NAME)
         ]
         return models
 
@@ -657,7 +657,8 @@ class GoogleCloudStorageModelRegistry(
         Args:
             name: Registered model name.
             version: Registered model version.
-            tag: py:class:`mlflow.entities.model_registry.ModelVersionTag` instance to log.
+            tag: py:class:`mlflow.entities.model_registry.ModelVersionTag` instance
+                to log.
 
         Returns:
             None
