@@ -8,7 +8,7 @@ __all__ = [
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
 from . import _mlflow_model_gcp_deployment_utils as vertex_utils
 from google.protobuf import json_format
@@ -21,6 +21,11 @@ try:
 except ImportError:
     from google.cloud.aiplatform import aiplatform  # pylint:disable=g-import-not-at-top
 
+if TYPE_CHECKING:
+    # These imports are only used to specify the parameter types and return types
+    # for the predict can explain methods.
+    import pandas  # pylint:disable=g-import-not-at-top
+    import numpy  # pylint:disable=g-import-not-at-top
 
 _logger = logging.getLogger(__name__)
 
@@ -50,31 +55,22 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
         self,
         name: str,
         model_uri: str,
-        flavor: str = None,
-        config: Dict[str, str] = None,
+        flavor: Optional[str] = None,
+        config: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Deploys the model.
 
-        Deploys a model to the specified target. By default, this method should block until
-        deployment completes (i.e. until it's possible to perform inference with the deployment).
-        In the case of conflicts (e.g. if it's not possible to create the specified deployment
-        without due to conflict with an existing deployment), raises a
-        :py:class:`mlflow.exceptions.MlflowException`. See target-specific plugin documentation
-        for additional detail on support for asynchronous deployment and other configuration.
-
-        Args:
-            name: Unique name to use for deployment. If another deployment exists with the same
-                name, raises a :py:class:`mlflow.exceptions.MlflowException`
-            model_uri: URI of model to deploy
-            flavor: (optional) The MLflow model flavor to deploy.
-                If unspecified, the default flavor will be chosen.
-            config: (optional) Dict containing updated target-specific configuration for the
-                deployment
-
-        Returns:
-            A dict corresponding to the created deployment, which must contain the 'name' key.
+        Deploys a model to the specified target. By default, this method should
+        block until deployment completes (i.e. until it's possible to perform
+        inference with the deployment). In the case of conflicts (e.g. if it's
+        not possible to create the specified deployment without due to conflict
+        with an existing deployment), raises a
+        :py:class:`mlflow.exceptions.MlflowException`. See target-specific
+        plugin documentation for additional detail on support for asynchronous
+        deployment and other configuration.
 
         Example::
+
             import mlflow
             client = mlflow.get_deploy_client("google_cloud")
             deployment = client.create_deployment(
@@ -110,6 +106,19 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
                     staging_bucket=None,
                 )
             )
+
+        Args:
+            name: Unique name to use for deployment. If another deployment
+                exists with the same name, raises a
+                :py:class:`mlflow.exceptions.MlflowException`
+            model_uri: URI of model to deploy
+            flavor: (optional) The MLflow model flavor to deploy.
+                If unspecified, the default flavor will be chosen.
+            config: (optional) Dict containing updated target-specific configuration for the
+                deployment
+
+        Returns:
+            A dict corresponding to the created deployment, which must contain the 'name' key.
         """
         config = config or {}
         existing_endpoints = aiplatform.Endpoint.list(filter=f'display_name="{name}"')
@@ -239,12 +248,13 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
     ) -> Dict[str, Any]:
         """Updates the deployment with the specified name.
 
-        You can update the URI of the model, the
-        flavor of the deployed model (in which case the model URI must also be specified), and/or
-        any target-specific attributes of the deployment (via `config`). By default, this method
-        should block until deployment completes (i.e. until it's possible to perform inference
-        with the updated deployment). See target-specific plugin documentation for additional
-        detail on support for asynchronous deployment and other configuration.
+        You can update the URI of the model, the flavor of the deployed model
+        (in which case the model URI must also be specified), and/or any
+        target-specific attributes of the deployment (via `config`). By default,
+        this method should block until deployment completes (i.e. until it's
+        possible to perform inference with the updated deployment).
+        See target-specific plugin documentation for additional detail on support
+        for asynchronous deployment and other configuration.
 
         Args:
             name: Unique name of deployment to update
@@ -267,13 +277,15 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
             config=config,
         )
 
-    def predict(self, deployment_name: str, df):
+    def predict(
+        self, deployment_name: str, df: "pandas.DataFrame"
+    ) -> Union["pandas.DataFrame", "pandas.Series", "numpy.ndarray", Dict[str, Any]]:
         """Computes model predictions.
 
-        Compute predictions on the pandas DataFrame ``df`` using the specified deployment.
-        Note that the input/output types of this method matches that of `mlflow pyfunc predict`
-        (we accept a pandas DataFrame as input and return either a pandas DataFrame,
-        pandas Series, or numpy array as output).
+        Compute predictions on the pandas DataFrame ``df`` using the specified
+        deployment. Note that the input/output types of this method matches that
+        of `mlflow pyfunc predict` (we accept a pandas DataFrame as input and
+        return either a pandas DataFrame, pandas Series, or numpy array as output).
 
         Args:
             deployment_name: Name of deployment to predict against
@@ -283,6 +295,7 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
             A pandas DataFrame, pandas Series, or numpy array
 
         Example::
+
             import mlflow
             import pandas
             df = pandas.DataFrame(
@@ -301,7 +314,7 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
         )
         return predictions
 
-    def explain(self, deployment_name: str, df):
+    def explain(self, deployment_name: str, df: "pandas.DataFrame"):
         """Generates explanations of model predictions.
 
         Generate explanations of model predictions on the specified input pandas Dataframe
@@ -317,6 +330,7 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
             an exception if the implementation is not available in deployment target's class
 
         Example::
+
             import mlflow
             import pandas
             df = pandas.DataFrame(
@@ -339,17 +353,34 @@ class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClien
 def run_local(
     name: str,
     model_uri: str,
-    flavor: str = None,
-    config: Dict[str, str] = None,
+    flavor: Optional[str] = None,
+    config: Optional[Dict[str, str]] = None,
 ):
+    """Deploys the specified model locally, for testing.
+
+    Args:
+        name: Unique name to use for deployment. If another deployment exists with
+            the same name, create_deployment will raise a
+            :py:class:`mlflow.exceptions.MlflowException`
+        model_uri: URI of model to deploy
+        flavor: Model flavor to deploy. If unspecified, default flavor is chosen.
+        config: Dict containing updated target-specific config for the deployment
+    """
     raise NotImplementedError()
 
 
 def target_help():
+    """Returns help string.
+
+    Returns a string containing detailed documentation on the current deployment
+    target, to be displayed when users invoke the
+    ``mlflow deployments help -t <target-name>`` CLI command.
+    """
     return """
         MLflow deployment plugin to deploy MLflow models to Google Cloud Vertex AI.
 
         Example::
+
             import mlflow
             client = mlflow.get_deploy_client("google_cloud")
             deployment = client.create_deployment(
