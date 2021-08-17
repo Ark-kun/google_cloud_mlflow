@@ -1,7 +1,7 @@
 """MLflow Model Registry plugin to allow logging models to Google Cloud Storage."""
 
 import datetime
-from typing import Iterator, List
+from typing import Iterator, List, Optional
 
 import google
 from google.cloud import storage
@@ -219,17 +219,17 @@ class GoogleCloudStorageModelRegistry(
             obtained via the ``token`` attribute of the object.
         """
         del page_token
-        parsed_filters = SearchUtils.parse_filter_for_model_versions(filter_string)
+        parsed_filters = SearchUtils.parse_filter_for_models(filter_string)
         (
             ordering_key,
             ordering_is_ascending,
         ) = SearchUtils.parse_order_by_for_search_registered_models(order_by)
-        model_versions = self._list_model_versions(name=...)
-        model_versions = [
-            model_version
-            for model_version in model_versions
-            if model_version.current_stage is None
-            or model_version.current_stage in model_version_stages.ALL_STAGES
+        models = self._list_models()
+        models = [
+            model
+            for model in models
+            if model.current_stage is None
+            or model.current_stage in model_version_stages.ALL_STAGES
         ]
         for parsed_filter in parsed_filters:
             if parsed_filter["comparator"] != "=":
@@ -238,20 +238,16 @@ class GoogleCloudStorageModelRegistry(
                     "comparator. Input filter string: {filter_string}",
                     error_code=databricks_pb2.INVALID_PARAMETER_VALUE,
                 )
-            # Key validated by `parse_filter_for_model_versions`
+            # Key validated by `parse_filter_for_models`
             key = parsed_filter["key"]
             value = parsed_filter["value"]
-            model_versions = [
-                model_version
-                for model_version in model_versions
-                if getattr(model_version, key, None) == value
-            ]
-        model_versions.sort(
+            models = [model for model in models if getattr(model, key, None) == value]
+        models.sort(
             key=lambda x: getattr(x, ordering_key, None),
             reversed=not ordering_is_ascending,
         )
-        model_versions = model_versions[0:max_results]
-        return model_versions
+        models = models[0:max_results]
+        return models
 
     def get_registered_model(self, name: str) -> model_registry.RegisteredModel:
         """Get registered model instance by name.
@@ -294,6 +290,24 @@ class GoogleCloudStorageModelRegistry(
         model_json = json_format.MessageToJson(model.to_proto())
         model_uri = self._get_model_info_file_path(name=name)
         storage.Blob.from_string(uri=model_uri).upload_from_string(data=model_json)
+
+    def _list_models(self) -> List[model_registry.RegisteredModel]:
+        """List of all registered models.
+
+        Returns:
+            A list of :py:class:`mlflow.entities.model_registry.RegisteredModel` objects.
+        """
+        base_dir_blob = storage.Blob.from_string(uri=self._base_uri)
+        blob_iterator = storage.Client().list_blobs(
+            bucket_or_name=base_dir_blob.bucket,
+            prefix=base_dir_blob.path,
+        )
+        models = [
+            _json_to_registered_model(blob.download_as_text())
+            for blob in blob_iterator
+            if blob.path.endswith(self._MODEL_INFO_FILE_NAME)
+        ]
+        return models
 
     def get_latest_versions(
         self, name: str, stages: List[str] = None
@@ -572,7 +586,10 @@ class GoogleCloudStorageModelRegistry(
             model_version_json
         )
 
-    def _list_model_versions(self, name: str) -> List[model_registry.ModelVersion]:
+    def _list_model_versions(
+        self,
+        name: Optional[str] = None,
+    ) -> List[model_registry.ModelVersion]:
         """List of all versions of a registered model.
 
         Args:
@@ -581,9 +598,12 @@ class GoogleCloudStorageModelRegistry(
         Returns:
             A list of :py:class:`mlflow.entities.model_registry.ModelVersion` objects.
         """
-        _validate_model_name(name)
-        model_uri = self._get_model_dir(name=name)
-        model_dir_blob = storage.Blob.from_string(uri=model_uri)
+        if name:
+            _validate_model_name(name)
+            model_dir_uri = self._get_model_dir(name=name)
+        else:
+            model_dir_uri = self._base_uri
+        model_dir_blob = storage.Blob.from_string(uri=model_dir_uri)
         blob_iterator = storage.Client().list_blobs(
             bucket_or_name=model_dir_blob.bucket,
             prefix=model_dir_blob.path,
@@ -625,7 +645,7 @@ class GoogleCloudStorageModelRegistry(
             objects.
         """
         parsed_filters = SearchUtils.parse_filter_for_model_versions(filter_string)
-        model_versions = self._list_model_versions(name=...)
+        model_versions = self._list_model_versions()
         model_versions = [
             model_version
             for model_version in model_versions
