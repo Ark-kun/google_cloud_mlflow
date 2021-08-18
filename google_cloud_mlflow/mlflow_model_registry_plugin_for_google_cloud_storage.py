@@ -90,7 +90,11 @@ class GoogleCloudStorageModelRegistry(
         )
         model_json = json_format.MessageToJson(model.to_proto())
         model_uri = self._get_model_info_file_path(name=name)
-        storage.Blob.from_string(uri=model_uri).upload_from_string(data=model_json)
+        storage.Blob.from_string(
+            uri=model_uri,
+            # Workaround for https://github.com/googleapis/python-storage/issues/540
+            client=storage.Client(),
+        ).upload_from_string(data=model_json)
         return model
 
     def update_registered_model(
@@ -260,7 +264,11 @@ class GoogleCloudStorageModelRegistry(
         _validate_model_name(name)
         model_uri = self._get_model_info_file_path(name=name)
         try:
-            model_json = storage.Blob.from_string(uri=model_uri).download_as_text()
+            model_json = storage.Blob.from_string(
+                uri=model_uri,
+                # Workaround for https://github.com/googleapis/python-storage/issues/540
+                client=storage.Client(),
+            ).download_as_text()
             model = _json_to_registered_model(model_json)
             return model
         except google.api_core.exceptions.NotFound:
@@ -288,7 +296,11 @@ class GoogleCloudStorageModelRegistry(
             model.last_updated_timestamp = int(current_time.timestamp())
         model_json = json_format.MessageToJson(model.to_proto())
         model_uri = self._get_model_info_file_path(name=name)
-        storage.Blob.from_string(uri=model_uri).upload_from_string(data=model_json)
+        storage.Blob.from_string(
+            uri=model_uri,
+            # Workaround for https://github.com/googleapis/python-storage/issues/540
+            client=storage.Client(),
+        ).upload_from_string(data=model_json)
 
     def _list_models(self) -> List[model_registry.RegisteredModel]:
         """List of all registered models.
@@ -386,7 +398,9 @@ class GoogleCloudStorageModelRegistry(
         model_dir_uri = self._get_model_dir(name=name)
         last_model_version_file_uri = model_dir_uri + self._LAST_MODEL_VERSION_FILE_NAME
         last_model_version_file_blob = storage.Blob.from_string(
-            uri=last_model_version_file_uri
+            uri=last_model_version_file_uri,
+            # Workaround for https://github.com/googleapis/python-storage/issues/540
+            client=storage.Client(),
         )
         last_model_version = 0
         try:
@@ -518,7 +532,11 @@ class GoogleCloudStorageModelRegistry(
             model_version_uri = self._get_model_version_info_file_path(
                 name=name, version=version
             )
-            storage.Blob.from_string(uri=model_version_uri).delete()
+            storage.Blob.from_string(
+                uri=model_version_uri,
+                # Workaround for https://github.com/googleapis/python-storage/issues/540
+                client=storage.Client(),
+            ).delete()
         else:
             model_version.current_stage = model_version_stages.STAGE_DELETED_INTERNAL
             self._set_model_version(
@@ -581,7 +599,11 @@ class GoogleCloudStorageModelRegistry(
         model_version_uri = self._get_model_version_info_file_path(
             name=name, version=version
         )
-        storage.Blob.from_string(uri=model_version_uri).upload_from_string(
+        storage.Blob.from_string(
+            uri=model_version_uri,
+            # Workaround for https://github.com/googleapis/python-storage/issues/540
+            client=storage.Client(),
+        ).upload_from_string(
             model_version_json
         )
 
