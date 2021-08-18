@@ -235,12 +235,6 @@ class GoogleCloudStorageModelRegistry(
             ordering_is_ascending,
         ) = SearchUtils.parse_order_by_for_search_registered_models(order_by)
         models = self._list_models()
-        models = [
-            model
-            for model in models
-            if model.current_stage is None
-            or model.current_stage in model_version_stages.ALL_STAGES
-        ]
         for parsed_filter in parsed_filters:
             if parsed_filter["comparator"] != "=":
                 raise mlflow.exceptions.MlflowException(
