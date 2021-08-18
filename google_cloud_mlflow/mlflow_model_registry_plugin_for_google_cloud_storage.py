@@ -83,8 +83,8 @@ class GoogleCloudStorageModelRegistry(
         current_time = datetime.datetime.utcnow()
         model = model_registry.RegisteredModel(
             name=name,
-            creation_timestamp=current_time.timestamp,
-            last_updated_timestamp=current_time.timestamp,
+            creation_timestamp=int(current_time.timestamp()),
+            last_updated_timestamp=int(current_time.timestamp()),
             description=description,
             tags=tags,
         )
@@ -285,7 +285,7 @@ class GoogleCloudStorageModelRegistry(
         _validate_model_name(name)
         if update_modification_time:
             current_time = datetime.datetime.utcnow()
-            model.last_updated_timestamp = current_time.timestamp
+            model.last_updated_timestamp = int(current_time.timestamp())
         model_json = json_format.MessageToJson(model.to_proto())
         model_uri = self._get_model_info_file_path(name=name)
         storage.Blob.from_string(uri=model_uri).upload_from_string(data=model_json)
@@ -431,8 +431,8 @@ class GoogleCloudStorageModelRegistry(
         model_version = model_registry.ModelVersion(
             name=name,
             version=version,
-            creation_timestamp=current_time.timestamp,
-            last_updated_timestamp=current_time.timestamp,
+            creation_timestamp=int(current_time.timestamp()),
+            last_updated_timestamp=int(current_time.timestamp()),
             description=description,
             source=source,
             run_id=run_id,
@@ -576,7 +576,7 @@ class GoogleCloudStorageModelRegistry(
         _validate_model_version(version)
         if update_modification_time:
             current_time = datetime.datetime.utcnow()
-            model_version.last_updated_timestamp = current_time.timestamp
+            model_version.last_updated_timestamp = int(current_time.timestamp())
         model_version_json = json_format.MessageToJson(model_version.to_proto())
         model_version_uri = self._get_model_version_info_file_path(
             name=name, version=version
