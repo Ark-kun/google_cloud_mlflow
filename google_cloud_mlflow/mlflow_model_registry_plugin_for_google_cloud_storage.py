@@ -176,7 +176,9 @@ class GoogleCloudStorageModelRegistry(
         bucket.delete_blobs(blobs)
 
     def list_registered_models(
-        self, max_results: int, page_token: str
+        self,
+        max_results: Optional[int],
+        page_token: Optional[str] = None,
     ) -> paged_list.PagedList[model_registry.RegisteredModel]:
         """List of all registered models.
 
@@ -208,10 +210,10 @@ class GoogleCloudStorageModelRegistry(
 
     def search_registered_models(
         self,
-        filter_string: str = None,
-        max_results: int = None,
-        order_by: str = None,
-        page_token: str = None,
+        filter_string: str,
+        max_results: Optional[int] = None,
+        order_by: Optional[str] = None,
+        page_token: Optional[str] = None,
     ) -> paged_list.PagedList[model_registry.RegisteredModel]:
         """Search for registered models in backend that satisfy the filter criteria.
 
@@ -230,10 +232,11 @@ class GoogleCloudStorageModelRegistry(
         """
         del page_token
         parsed_filters = SearchUtils.parse_filter_for_registered_models(filter_string)
-        (
-            ordering_key,
-            ordering_is_ascending,
-        ) = SearchUtils.parse_order_by_for_search_registered_models(order_by)
+        if order_by:
+            (
+                ordering_key,
+                ordering_is_ascending,
+            ) = SearchUtils.parse_order_by_for_search_registered_models(order_by)
         models = self._list_models()
         for parsed_filter in parsed_filters:
             if parsed_filter["comparator"] != "=":
@@ -246,11 +249,13 @@ class GoogleCloudStorageModelRegistry(
             key = parsed_filter["key"]
             value = parsed_filter["value"]
             models = [model for model in models if getattr(model, key, None) == value]
-        models.sort(
-            key=lambda x: getattr(x, ordering_key, None),
-            reversed=not ordering_is_ascending,
-        )
-        models = models[0:max_results]
+        if order_by:
+            models.sort(
+                key=lambda x: getattr(x, ordering_key, None),
+                reversed=not ordering_is_ascending,
+            )
+        if max_results:
+            models = models[0:max_results]
         return models
 
     def get_registered_model(self, name: str) -> model_registry.RegisteredModel:
@@ -489,7 +494,11 @@ class GoogleCloudStorageModelRegistry(
         return model_version
 
     def transition_model_version_stage(
-        self, name: str, version: str, stage: str, archive_existing_versions: bool
+        self,
+        name: str,
+        version: str,
+        stage: str,
+        archive_existing_versions: bool = False,
     ) -> model_registry.ModelVersion:
         """Update model version stage.
 
