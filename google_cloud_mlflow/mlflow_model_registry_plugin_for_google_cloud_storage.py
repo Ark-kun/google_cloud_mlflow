@@ -140,7 +140,9 @@ class GoogleCloudStorageModelRegistry(
         src_path = src_dir_blob.path
         dst_path = dst_dir_blob.path
         blobs: Iterator[storage.Blob] = storage.Client().list_blobs(
-            bucket_or_name=bucket,
+            # Using bucket name as a workaround for
+            # https://github.com/googleapis/python-storage/issues/540
+            bucket_or_name=bucket.name,
             prefix=src_path,
         )
         for blob in blobs:
@@ -166,7 +168,9 @@ class GoogleCloudStorageModelRegistry(
         bucket = src_dir_blob.bucket
         src_path = src_dir_blob.path
         blobs: Iterator[storage.Blob] = storage.Client().list_blobs(
-            bucket_or_name=bucket,
+            # Using bucket name as a workaround for
+            # https://github.com/googleapis/python-storage/issues/540
+            bucket_or_name=bucket.name,
             prefix=src_path,
         )
         bucket.delete_blobs(blobs)
@@ -188,6 +192,8 @@ class GoogleCloudStorageModelRegistry(
         """
         root_dir = storage.Blob.from_string(uri=self._base_uri)
         blob_iterator = storage.Client().list_blobs(
+            # Using bucket name as a workaround for
+            # https://github.com/googleapis/python-storage/issues/540
             bucket_or_name=root_dir.bucket.name,
             prefix=root_dir.path,
             max_results=max_results,
@@ -312,8 +318,9 @@ class GoogleCloudStorageModelRegistry(
         """
         base_dir_blob = storage.Blob.from_string(uri=self._base_uri)
         blob_iterator = storage.Client().list_blobs(
-            bucket_or_name=base_dir_blob.bucket,
-            prefix=base_dir_blob.path,
+            # Using bucket name as a workaround for
+            # https://github.com/googleapis/python-storage/issues/540
+            bucket_or_name=base_dir_blob.bucket.name,
         )
         models = [
             _json_to_registered_model(blob.download_as_text())
@@ -581,7 +588,9 @@ class GoogleCloudStorageModelRegistry(
         )
         try:
             model_version_json = storage.Blob.from_string(
-                uri=model_version_uri
+                uri=model_version_uri,
+                # Workaround for https://github.com/googleapis/python-storage/issues/540
+                client=storage.Client(),
             ).download_as_text()
             model_version = _json_to_registered_model_version(model_version_json)
             return model_version
@@ -644,8 +653,9 @@ class GoogleCloudStorageModelRegistry(
             model_dir_uri = self._base_uri
         model_dir_blob = storage.Blob.from_string(uri=model_dir_uri)
         blob_iterator = storage.Client().list_blobs(
-            bucket_or_name=model_dir_blob.bucket,
-            prefix=model_dir_blob.path,
+            # Using bucket name as a workaround for
+            # https://github.com/googleapis/python-storage/issues/540
+            bucket_or_name=model_dir_blob.bucket.name,
         )
         models = [
             _json_to_registered_model_version(blob.download_as_text())
