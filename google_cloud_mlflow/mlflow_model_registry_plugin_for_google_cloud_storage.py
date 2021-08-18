@@ -173,7 +173,7 @@ class GoogleCloudStorageModelRegistry(
             bucket_or_name=bucket.name,
             prefix=src_path,
         )
-        bucket.delete_blobs(blobs)
+        bucket.delete_blobs(list(blobs))
 
     def list_registered_models(
         self,
