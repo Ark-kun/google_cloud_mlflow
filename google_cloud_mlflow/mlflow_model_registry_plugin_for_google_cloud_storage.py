@@ -413,7 +413,7 @@ class GoogleCloudStorageModelRegistry(
             # Avoiding race condition
             if_generation_match=last_model_version_file_blob.generation,
         )
-        return last_model_version
+        return str(last_model_version)
 
     def create_model_version(
         self,
