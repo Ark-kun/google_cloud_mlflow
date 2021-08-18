@@ -137,8 +137,8 @@ class GoogleCloudStorageModelRegistry(
         src_dir_blob = storage.Blob.from_string(uri=src_dir)
         dst_dir_blob = storage.Blob.from_string(uri=dst_dir)
         bucket = src_dir_blob.bucket
-        src_path = src_dir_blob.path
-        dst_path = dst_dir_blob.path
+        src_path = src_dir_blob.name
+        dst_path = dst_dir_blob.name
         blobs: Iterator[storage.Blob] = storage.Client().list_blobs(
             # Using bucket name as a workaround for
             # https://github.com/googleapis/python-storage/issues/540
@@ -146,8 +146,8 @@ class GoogleCloudStorageModelRegistry(
             prefix=src_path,
         )
         for blob in blobs:
-            assert blob.path.startswith(src_path)
-            new_path = blob.path.replace(src_path, dst_path, 1)
+            assert blob.name.startswith(src_path)
+            new_path = blob.name.replace(src_path, dst_path, 1)
             blob.bucket.rename_blob(blob, new_path)
         return self.get_registered_model(new_name)
 
@@ -166,7 +166,7 @@ class GoogleCloudStorageModelRegistry(
         src_dir = self._get_model_dir(name=name)
         src_dir_blob = storage.Blob.from_string(uri=src_dir)
         bucket = src_dir_blob.bucket
-        src_path = src_dir_blob.path
+        src_path = src_dir_blob.name
         blobs: Iterator[storage.Blob] = storage.Client().list_blobs(
             # Using bucket name as a workaround for
             # https://github.com/googleapis/python-storage/issues/540
@@ -195,14 +195,14 @@ class GoogleCloudStorageModelRegistry(
             # Using bucket name as a workaround for
             # https://github.com/googleapis/python-storage/issues/540
             bucket_or_name=root_dir.bucket.name,
-            prefix=root_dir.path,
+            prefix=root_dir.name,
             max_results=max_results,
             page_token=page_token,
         )
         models = [
             _json_to_registered_model(blob.download_as_text())
             for blob in blob_iterator
-            if blob.path.endswith(self._MODEL_INFO_FILE_NAME)
+            if blob.name.endswith(self._MODEL_INFO_FILE_NAME)
         ]
         return paged_list.PagedList(items=models, token=blob_iterator.next_page_token)
 
@@ -321,11 +321,12 @@ class GoogleCloudStorageModelRegistry(
             # Using bucket name as a workaround for
             # https://github.com/googleapis/python-storage/issues/540
             bucket_or_name=base_dir_blob.bucket.name,
+            prefix=base_dir_blob.name,
         )
         models = [
             _json_to_registered_model(blob.download_as_text())
             for blob in blob_iterator
-            if blob.path.endswith(self._MODEL_INFO_FILE_NAME)
+            if blob.name.endswith(self._MODEL_INFO_FILE_NAME)
         ]
         return models
 
@@ -656,11 +657,12 @@ class GoogleCloudStorageModelRegistry(
             # Using bucket name as a workaround for
             # https://github.com/googleapis/python-storage/issues/540
             bucket_or_name=model_dir_blob.bucket.name,
+            prefix=model_dir_blob.name,
         )
         models = [
             _json_to_registered_model_version(blob.download_as_text())
             for blob in blob_iterator
-            if blob.path.endswith(self._MODEL_VERSION_INFO_FILE_NAME)
+            if blob.name.endswith(self._MODEL_VERSION_INFO_FILE_NAME)
         ]
         return models
 
