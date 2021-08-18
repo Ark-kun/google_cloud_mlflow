@@ -10,6 +10,7 @@ import mlflow
 from mlflow.entities import model_registry
 from mlflow.entities.model_registry import model_version_stages
 from mlflow.protos import databricks_pb2
+from mlflow.protos import model_registry_pb2
 from mlflow.store.entities import paged_list
 from mlflow.utils.search_utils import SearchUtils
 from mlflow.utils.validation import (
@@ -34,7 +35,9 @@ class GoogleCloudStorageModelRegistry(
 
     def __init__(self, store_uri: str):
         if not _validate_store_uri(store_uri):
-            raise mlflow.MlflowException(f"Bad store_uri format: {store_uri}")
+            raise mlflow.exceptions.MlflowException(
+                f"Bad store_uri format: {store_uri}"
+            )
         store_uri = store_uri.rstrip("/") + "/"
         self._base_uri = store_uri
 
@@ -55,9 +58,6 @@ class GoogleCloudStorageModelRegistry(
             + self._MODEL_VERSION_INFO_FILE_NAME
         )
 
-    def _get_model_blob_path(self, name: str, version: str) -> str:
-        return f"{self._path_prefix}/{name}/{version}/"
-
     def create_registered_model(
         self,
         name: str,
@@ -76,7 +76,7 @@ class GoogleCloudStorageModelRegistry(
             A single object of :py:class:`mlflow.entities.model_registry.RegisteredModel`
             created in the backend.
         """
-        # TODO(avolkov): Validate that the model does nto exist
+        # TODO(avolkov): Validate that the model does not exist
         _validate_model_name(name)
         for tag in tags or []:
             _validate_registered_model_tag(tag.key, tag.value)
@@ -223,7 +223,7 @@ class GoogleCloudStorageModelRegistry(
             obtained via the ``token`` attribute of the object.
         """
         del page_token
-        parsed_filters = SearchUtils.parse_filter_for_models(filter_string)
+        parsed_filters = SearchUtils.parse_filter_for_registered_models(filter_string)
         (
             ordering_key,
             ordering_is_ascending,
@@ -237,9 +237,9 @@ class GoogleCloudStorageModelRegistry(
         ]
         for parsed_filter in parsed_filters:
             if parsed_filter["comparator"] != "=":
-                raise mlflow.MlflowException(
-                    f"Model Registry search filter only supports equality(=) "
-                    "comparator. Input filter string: {filter_string}",
+                raise mlflow.exceptions.MlflowException(
+                    "Model Registry search filter only supports equality(=) "
+                    f"comparator. Input filter string: {filter_string}",
                     error_code=databricks_pb2.INVALID_PARAMETER_VALUE,
                 )
             # Key validated by `parse_filter_for_models`
@@ -273,7 +273,7 @@ class GoogleCloudStorageModelRegistry(
             model = _json_to_registered_model(model_json)
             return model
         except google.api_core.exceptions.NotFound:
-            raise mlflow.MlflowException(
+            raise mlflow.exceptions.MlflowException(
                 message=f'Model "{name}" does not exist',
                 error_code=databricks_pb2.RESOURCE_DOES_NOT_EXIST,
             )
@@ -571,7 +571,7 @@ class GoogleCloudStorageModelRegistry(
             model_version = _json_to_registered_model_version(model_version_json)
             return model_version
         except google.api_core.exceptions.NotFound:
-            raise mlflow.MlflowException(
+            raise mlflow.exceptions.MlflowException(
                 message=f'Model "{name}" version "{version}" does not exist',
                 error_code=databricks_pb2.RESOURCE_DOES_NOT_EXIST,
             )
@@ -607,9 +607,7 @@ class GoogleCloudStorageModelRegistry(
             uri=model_version_uri,
             # Workaround for https://github.com/googleapis/python-storage/issues/540
             client=storage.Client(),
-        ).upload_from_string(
-            model_version_json
-        )
+        ).upload_from_string(model_version_json)
 
     def _list_model_versions(
         self,
@@ -679,9 +677,9 @@ class GoogleCloudStorageModelRegistry(
         ]
         for parsed_filter in parsed_filters:
             if parsed_filter["comparator"] != "=":
-                raise mlflow.MlflowException(
-                    f"Model Registry search filter only supports equality(=) "
-                    "comparator. Input filter string: {filter_string}",
+                raise mlflow.exceptions.MlflowException(
+                    "Model Registry search filter only supports equality(=) "
+                    f"comparator. Input filter string: {filter_string}",
                     error_code=databricks_pb2.INVALID_PARAMETER_VALUE,
                 )
             # Key validated by `parse_filter_for_model_versions`
@@ -692,7 +690,7 @@ class GoogleCloudStorageModelRegistry(
                 for model_version in model_versions
                 if getattr(model_version, key, None) == value
             ]
-        return paged_list.PagedList(model_versions)
+        return paged_list.PagedList(items=model_versions, token=None)
 
     def set_model_version_tag(
         self, name: str, version: str, tag: model_registry.ModelVersionTag
@@ -735,12 +733,16 @@ def _validate_store_uri(store_uri: str) -> bool:
 
 
 def _json_to_registered_model(model_json: str) -> model_registry.RegisteredModel:
-    model = model_registry.RegisteredModel()
+    """Converts JSON string to RegisteredModel."""
+    model = model_registry_pb2.RegisteredModel()
     json_format.Parse(model_json, model)
-    return model
+    return model_registry.RegisteredModel.from_proto(model)
 
 
-def _json_to_registered_model_version(model_json: str) -> model_registry.ModelVersion:
-    model = model_registry.ModelVersion()
-    json_format.Parse(model_json, model)
-    return model
+def _json_to_registered_model_version(
+    model_json: str,
+) -> model_registry.ModelVersion:
+    """Converts JSON string to ModelVersion."""
+    model_version = model_registry_pb2.ModelVersion()
+    json_format.Parse(model_json, model_version)
+    return model_registry.ModelVersion.from_proto(model_version)
