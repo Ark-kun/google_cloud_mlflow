@@ -88,13 +88,9 @@ class GoogleCloudStorageModelRegistry(
             description=description,
             tags=tags,
         )
-        model_json = json_format.MessageToJson(model.to_proto())
-        model_uri = self._get_model_info_file_path(name=name)
-        storage.Blob.from_string(
-            uri=model_uri,
-            # Workaround for https://github.com/googleapis/python-storage/issues/540
-            client=storage.Client(),
-        ).upload_from_string(data=model_json)
+        self._set_registered_model_proto(
+            name, model.to_proto(), update_modification_time=False
+        )
         return model
 
     def update_registered_model(
@@ -112,8 +108,9 @@ class GoogleCloudStorageModelRegistry(
             A single updated :py:class:`mlflow.entities.model_registry.RegisteredModel` object.
         """
         model = self.get_registered_model(name=name)
-        model.description = description
-        self._set_registered_model(name, model)
+        model_proto = model.to_proto()
+        model_proto.description = description
+        self._set_registered_model_proto(name, model_proto)
         return model
 
     def rename_registered_model(
@@ -132,6 +129,9 @@ class GoogleCloudStorageModelRegistry(
         """
         _validate_model_name(name)
         _validate_model_name(new_name)
+        model = self.get_registered_model(name)
+        model_proto = model.to_proto()
+        model_proto.name = new_name
         src_dir = self._get_model_dir(name=name)
         dst_dir = self._get_model_dir(name=new_name)
         src_dir_blob = storage.Blob.from_string(uri=src_dir)
@@ -147,7 +147,7 @@ class GoogleCloudStorageModelRegistry(
             assert blob.path.startswith(src_path)
             new_path = blob.path.replace(src_path, dst_path, 1)
             blob.bucket.rename_blob(blob, new_path)
-        return self.get_registered_model(name)
+        return self.get_registered_model(new_name)
 
     def delete_registered_model(self, name: str) -> None:
         """Delete the registered model.
@@ -278,24 +278,25 @@ class GoogleCloudStorageModelRegistry(
                 error_code=databricks_pb2.RESOURCE_DOES_NOT_EXIST,
             )
 
-    def _set_registered_model(
+    def _set_registered_model_proto(
         self,
         name: str,
-        model: model_registry.RegisteredModel,
+        model_proto: model_registry_pb2.RegisteredModel,
         update_modification_time: bool = True,
     ) -> None:
         """Set registered model instance.
 
         Args:
             name: Registered model name.
-            model: A single :py:class:`mlflow.entities.model_registry.RegisteredModel` object.
+            model_proto: A single
+                :py:class:`mlflow.entities.model_registry_pb2.RegisteredModel` object.
             update_modification_time: Whether to update the modification time
         """
         _validate_model_name(name)
         if update_modification_time:
             current_time = datetime.datetime.utcnow()
-            model.last_updated_timestamp = int(current_time.timestamp())
-        model_json = json_format.MessageToJson(model.to_proto())
+            model_proto.last_updated_timestamp = int(current_time.timestamp())
+        model_json = json_format.MessageToJson(model_proto)
         model_uri = self._get_model_info_file_path(name=name)
         storage.Blob.from_string(
             uri=model_uri,
@@ -367,8 +368,9 @@ class GoogleCloudStorageModelRegistry(
             None
         """
         model = self.get_registered_model(name=name)
-        model.tags[tag.key] = tag.value
-        self._set_registered_model(name, model)
+        model_proto = model.to_proto()
+        model_proto.tags[tag.key] = tag.value
+        self._set_registered_model_proto(name, model_proto)
 
     def delete_registered_model_tag(self, name: str, key: str) -> None:
         """Delete a tag associated with the registered model.
@@ -381,8 +383,9 @@ class GoogleCloudStorageModelRegistry(
             None
         """
         model = self.get_registered_model(name=name)
-        del model.tags[key]
-        self._set_registered_model(name, model)
+        model_proto = model.to_proto()
+        del model_proto.tags[key]
+        self._set_registered_model_proto(name, model_proto)
 
     # CRUD API for ModelVersion objects
 
@@ -454,7 +457,9 @@ class GoogleCloudStorageModelRegistry(
             tags=tags,
             run_link=run_link,
         )
-        self._set_model_version(name=name, version=version, model_version=model_version)
+        self._set_model_version_proto(
+            name=name, version=version, model_version_proto=model_version.to_proto()
+        )
         return model_version
 
     def update_model_version(
@@ -474,8 +479,11 @@ class GoogleCloudStorageModelRegistry(
             A single :py:class:`mlflow.entities.model_registry.ModelVersion` object.
         """
         model_version = self.get_model_version(name=name, version=version)
-        model_version.description = description
-        self._set_model_version(name=name, version=version, model_version=model_version)
+        model_version_proto = model_version.to_proto()
+        model_version_proto.description = description
+        self._set_model_version_proto(
+            name=name, version=version, model_version_proto=model_version_proto
+        )
         return model_version
 
     def transition_model_version_stage(
@@ -496,8 +504,9 @@ class GoogleCloudStorageModelRegistry(
         """
         model_version = self.get_model_version(name=name, version=version)
         stage = model_version_stages.get_canonical_stage(stage)
-        model_version.current_stage = stage
-        self._set_model_version(name, version, model_version)
+        model_version_proto = model_version.to_proto()
+        model_version_proto.current_stage = stage
+        self._set_model_version_proto(name, version, model_version_proto)
         if archive_existing_versions:
             all_model_versions = self._list_model_versions(name=name)
             all_other_model_versions = list(
@@ -512,11 +521,14 @@ class GoogleCloudStorageModelRegistry(
                 )
             )
             for other_model_version in all_other_model_versions_in_same_stage:
-                other_model_version.current_stage = model_version_stages.STAGE_ARCHIVED
-                self._set_model_version(
+                other_model_version_proto = other_model_version.to_proto()
+                other_model_version_proto.current_stage = (
+                    model_version_stages.STAGE_ARCHIVED
+                )
+                self._set_model_version_proto(
                     name=other_model_version.name,
                     version=other_model_version.version,
-                    model_version=other_model_version,
+                    model_version_proto=other_model_version_proto,
                 )
         return model_version
 
@@ -542,11 +554,14 @@ class GoogleCloudStorageModelRegistry(
                 client=storage.Client(),
             ).delete()
         else:
-            model_version.current_stage = model_version_stages.STAGE_DELETED_INTERNAL
-            self._set_model_version(
+            model_version_proto = model_version.to_proto()
+            model_version_proto.current_stage = (
+                model_version_stages.STAGE_DELETED_INTERNAL
+            )
+            self._set_model_version_proto(
                 name=name,
                 version=version,
-                model_version=model_version,
+                model_version_proto=model_version_proto,
             )
 
     def get_model_version(self, name: str, version: str) -> model_registry.ModelVersion:
@@ -576,11 +591,11 @@ class GoogleCloudStorageModelRegistry(
                 error_code=databricks_pb2.RESOURCE_DOES_NOT_EXIST,
             )
 
-    def _set_model_version(
+    def _set_model_version_proto(
         self,
         name: str,
         version: str,
-        model_version: model_registry.ModelVersion,
+        model_version_proto: model_registry_pb2.ModelVersion,
         update_modification_time: bool = True,
     ) -> None:
         """Get the model version instance by name and version.
@@ -588,7 +603,8 @@ class GoogleCloudStorageModelRegistry(
         Args:
             name: Registered model name.
             version: Registered model version.
-            model_version: A :py:class:`mlflow.entities.model_registry.ModelVersion` object.
+            model_version_proto: A
+                :py:class:`mlflow.entities.model_registry_pb2.ModelVersion` object.
             update_modification_time: Whether to update the modification time
 
         Returns:
@@ -598,8 +614,8 @@ class GoogleCloudStorageModelRegistry(
         _validate_model_version(version)
         if update_modification_time:
             current_time = datetime.datetime.utcnow()
-            model_version.last_updated_timestamp = int(current_time.timestamp())
-        model_version_json = json_format.MessageToJson(model_version.to_proto())
+            model_version_proto.last_updated_timestamp = int(current_time.timestamp())
+        model_version_json = json_format.MessageToJson(model_version_proto)
         model_version_uri = self._get_model_version_info_file_path(
             name=name, version=version
         )
@@ -708,8 +724,11 @@ class GoogleCloudStorageModelRegistry(
         """
         _validate_model_version_tag(tag.key, tag.value)
         model_version = self.get_model_version(name, version)
-        model_version.tags[tag.key] = tag.value
-        self._set_model_version(name=name, version=version, model_version=model_version)
+        model_version_proto = model_version.to_proto()
+        model_version_proto.tags[tag.key] = tag.value
+        self._set_model_version_proto(
+            name=name, version=version, model_version_proto=model_version_proto
+        )
 
     def delete_model_version_tag(self, name: str, version: str, key: str) -> None:
         """Delete a tag associated with the model version.
@@ -724,8 +743,11 @@ class GoogleCloudStorageModelRegistry(
         """
         _validate_tag_name(key)
         model_version = self.get_model_version(name, version)
-        del model_version.tags[key]
-        self._set_model_version(name=name, version=version, model_version=model_version)
+        model_version_proto = model_version.to_proto()
+        del model_version_proto.tags[key]
+        self._set_model_version_proto(
+            name=name, version=version, model_version_proto=model_version_proto
+        )
 
 
 def _validate_store_uri(store_uri: str) -> bool:
