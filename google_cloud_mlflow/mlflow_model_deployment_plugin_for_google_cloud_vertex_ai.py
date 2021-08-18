@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 from . import _mlflow_model_gcp_deployment_utils as vertex_utils
 from google.protobuf import json_format
 import mlflow
+from mlflow import deployments
 
 # TODO(b/195784726) Remove this workaround once google-cloud-aiplatform conforms
 # to the third_party python rules
@@ -48,7 +49,7 @@ def _resource_to_mlflow_dict(
     return resource_dict
 
 
-class GoogleCloudVertexAiDeploymentClient(mlflow.deployments.BaseDeploymentClient):
+class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
     """The Google Cloud Vertex AI implementation of the BaseDeploymentClient."""
 
     def create_deployment(
