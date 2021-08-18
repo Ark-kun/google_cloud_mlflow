@@ -32,16 +32,15 @@ class GoogleCloudStorageModelRegistry(
 
     DELETE_MODEL_VERSIONS_INSTEAD_OF_MARKING_AS_DELETED = False
 
-    def __init__(self, base_uri: str):
-        if not _validate_base_uri(base_uri):
-            raise mlflow.MlflowException(f"Bad base_uri format: {base_uri}")
-        base_uri = base_uri.rstrip("/") + "/"
-        self._base_uri = base_uri
+    def __init__(self, store_uri: str):
+        if not _validate_store_uri(store_uri):
+            raise mlflow.MlflowException(f"Bad store_uri format: {store_uri}")
+        store_uri = store_uri.rstrip("/") + "/"
+        self._base_uri = store_uri
 
     # CRUD API for RegisteredModel objects
 
     def _get_model_dir(self, name: str) -> str:
-        # return self._path_prefix.rstrip("/") + "/" + name + "/"
         return self._base_uri + name + "/"
 
     def _get_model_info_file_path(self, name: str) -> str:
@@ -705,8 +704,8 @@ class GoogleCloudStorageModelRegistry(
         self._set_model_version(name=name, version=version, model_version=model_version)
 
 
-def _validate_base_uri(base_uri: str) -> bool:
-    return base_uri.startswith("gs://")
+def _validate_store_uri(store_uri: str) -> bool:
+    return store_uri.startswith("gs://")
 
 
 def _json_to_registered_model(model_json: str) -> model_registry.RegisteredModel:
