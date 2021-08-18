@@ -147,6 +147,7 @@ class GoogleCloudStorageModelRegistry(
             assert blob.path.startswith(src_path)
             new_path = blob.path.replace(src_path, dst_path, 1)
             blob.bucket.rename_blob(blob, new_path)
+        return self.get_registered_model(name)
 
     def delete_registered_model(self, name: str) -> None:
         """Delete the registered model.
@@ -454,6 +455,7 @@ class GoogleCloudStorageModelRegistry(
             run_link=run_link,
         )
         self._set_model_version(name=name, version=version, model_version=model_version)
+        return model_version
 
     def update_model_version(
         self,
@@ -474,6 +476,7 @@ class GoogleCloudStorageModelRegistry(
         model_version = self.get_model_version(name=name, version=version)
         model_version.description = description
         self._set_model_version(name=name, version=version, model_version=model_version)
+        return model_version
 
     def transition_model_version_stage(
         self, name: str, version: str, stage: str, archive_existing_versions: bool
@@ -515,6 +518,7 @@ class GoogleCloudStorageModelRegistry(
                     version=other_model_version.version,
                     model_version=other_model_version,
                 )
+        return model_version
 
     def delete_model_version(self, name: str, version: str) -> None:
         """Delete model version in backend.
