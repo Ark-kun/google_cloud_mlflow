@@ -64,7 +64,7 @@ class GoogleCloudStorageModelRegistry(
         tags: List[model_registry.RegisteredModelTag] = None,
         description: str = None,
     ) -> model_registry.RegisteredModel:
-        """Create a new registered model in backend store.
+        """Creates a new registered model in backend store.
 
         Args:
             name: Name of the new model. This is expected to be unique in the backend store.
@@ -76,7 +76,7 @@ class GoogleCloudStorageModelRegistry(
             A single object of :py:class:`mlflow.entities.model_registry.RegisteredModel`
             created in the backend.
         """
-        # TODO(avolkov): Validate that the model does not exist
+        # TODO(avolkov): Validate that the model does not exist.
         _validate_model_name(name)
         for tag in tags or []:
             _validate_registered_model_tag(tag.key, tag.value)
@@ -98,7 +98,7 @@ class GoogleCloudStorageModelRegistry(
         name: str,
         description: str,
     ) -> model_registry.RegisteredModel:
-        """Update description of the registered model.
+        """Updates description of the registered model.
 
         Args:
             name: Registered model name.
@@ -118,7 +118,7 @@ class GoogleCloudStorageModelRegistry(
         name: str,
         new_name: str,
     ) -> model_registry.RegisteredModel:
-        """Rename the registered model.
+        """Renames the registered model.
 
         Args:
             name: Registered model name.
@@ -152,7 +152,7 @@ class GoogleCloudStorageModelRegistry(
         return self.get_registered_model(new_name)
 
     def delete_registered_model(self, name: str) -> None:
-        """Delete the registered model.
+        """Deletes the registered model.
 
         Backend raises exception if a registered model with given name does not exist.
 
@@ -180,7 +180,7 @@ class GoogleCloudStorageModelRegistry(
         max_results: Optional[int],
         page_token: Optional[str] = None,
     ) -> paged_list.PagedList[model_registry.RegisteredModel]:
-        """List of all registered models.
+        """Lists all registered models.
 
         Args:
             max_results: Maximum number of registered models desired.
@@ -215,7 +215,7 @@ class GoogleCloudStorageModelRegistry(
         order_by: Optional[str] = None,
         page_token: Optional[str] = None,
     ) -> paged_list.PagedList[model_registry.RegisteredModel]:
-        """Search for registered models in backend that satisfy the filter criteria.
+        """Searches for registered models that satisfy the filter criteria.
 
         Args:
             filter_string: Filter query string, defaults to searching all registered models.
@@ -259,7 +259,7 @@ class GoogleCloudStorageModelRegistry(
         return models
 
     def get_registered_model(self, name: str) -> model_registry.RegisteredModel:
-        """Get registered model instance by name.
+        """Gets registered model instance by name.
 
         Args:
             name: Registered model name.
@@ -289,7 +289,7 @@ class GoogleCloudStorageModelRegistry(
         model_proto: model_registry_pb2.RegisteredModel,
         update_modification_time: bool = True,
     ) -> None:
-        """Set registered model instance.
+        """Sets registered model instance.
 
         Args:
             name: Registered model name.
@@ -310,7 +310,7 @@ class GoogleCloudStorageModelRegistry(
         ).upload_from_string(data=model_json)
 
     def _list_models(self) -> List[model_registry.RegisteredModel]:
-        """List of all registered models.
+        """Lists all registered models.
 
         Returns:
             A list of :py:class:`mlflow.entities.model_registry.RegisteredModel` objects.
@@ -332,7 +332,7 @@ class GoogleCloudStorageModelRegistry(
     def get_latest_versions(
         self, name: str, stages: List[str] = None
     ) -> List[model_registry.ModelVersion]:
-        """Latest version models for each requested stage.
+        """Gets the latest model version for each requested stage.
 
         If no ``stages`` argument is provided, returns the latest version for each stage.
 
@@ -365,7 +365,7 @@ class GoogleCloudStorageModelRegistry(
         name: str,
         tag: model_registry.RegisteredModelTag,
     ) -> None:
-        """Set a tag for the registered model.
+        """Sets a tag for the registered model.
 
         Args:
             name: Registered model name.
@@ -435,7 +435,7 @@ class GoogleCloudStorageModelRegistry(
         run_link: str = None,
         description: str = None,
     ) -> model_registry.ModelVersion:
-        """Create a new model version from given source and run ID.
+        """Creates a new model version from given source and run ID.
 
         Args:
             name: Registered model name.
@@ -475,7 +475,7 @@ class GoogleCloudStorageModelRegistry(
         version: str,
         description: str,
     ) -> model_registry.ModelVersion:
-        """Update metadata associated with a model version in backend.
+        """Updates metadata associated with a model version in backend.
 
         Args:
             name: Registered model name.
@@ -500,7 +500,7 @@ class GoogleCloudStorageModelRegistry(
         stage: str,
         archive_existing_versions: bool = False,
     ) -> model_registry.ModelVersion:
-        """Update model version stage.
+        """Updates model version stage.
 
         Args:
             name: Registered model name.
@@ -544,7 +544,7 @@ class GoogleCloudStorageModelRegistry(
         return model_version
 
     def delete_model_version(self, name: str, version: str) -> None:
-        """Delete model version in backend.
+        """Deletes model version in backend.
 
         Args:
             name: Registered model name.
@@ -576,7 +576,7 @@ class GoogleCloudStorageModelRegistry(
             )
 
     def get_model_version(self, name: str, version: str) -> model_registry.ModelVersion:
-        """Get the model version instance by name and version.
+        """Gets the model version instance by name and version.
 
         Args:
             name: Registered model name.
@@ -611,7 +611,7 @@ class GoogleCloudStorageModelRegistry(
         model_version_proto: model_registry_pb2.ModelVersion,
         update_modification_time: bool = True,
     ) -> None:
-        """Get the model version instance by name and version.
+        """Gets the model version instance by name and version.
 
         Args:
             name: Registered model name.
@@ -642,7 +642,7 @@ class GoogleCloudStorageModelRegistry(
         self,
         name: Optional[str] = None,
     ) -> List[model_registry.ModelVersion]:
-        """List of all versions of a registered model.
+        """Lists all versions of a registered model.
 
         Args:
             name: Registered model name.
@@ -670,7 +670,7 @@ class GoogleCloudStorageModelRegistry(
         return models
 
     def get_model_version_download_uri(self, name: str, version: str) -> str:
-        """Get the download location in Model Registry for this model version.
+        """Gets the download location in Model Registry for this model version.
 
         NOTE: For first version of Model Registry, since the models are not copied over to another
               location, download URI points to input source path.
@@ -688,7 +688,7 @@ class GoogleCloudStorageModelRegistry(
     def search_model_versions(
         self, filter_string: str
     ) -> paged_list.PagedList[model_registry.ModelVersion]:
-        """Search for model versions in backend that satisfy the filter criteria.
+        """Searches for model versions in backend that satisfy the filter criteria.
 
         Args:
             filter_string: A filter string expression. Currently supports a single filter
@@ -726,7 +726,7 @@ class GoogleCloudStorageModelRegistry(
     def set_model_version_tag(
         self, name: str, version: str, tag: model_registry.ModelVersionTag
     ) -> None:
-        """Set a tag for the model version.
+        """Sets a tag for the model version.
 
         Args:
             name: Registered model name.
@@ -746,7 +746,7 @@ class GoogleCloudStorageModelRegistry(
         )
 
     def delete_model_version_tag(self, name: str, version: str, key: str) -> None:
-        """Delete a tag associated with the model version.
+        """Deletes a tag associated with the model version.
 
         Args:
             name: Registered model name.
