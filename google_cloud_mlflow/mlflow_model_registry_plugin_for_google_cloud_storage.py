@@ -130,6 +130,8 @@ class GoogleCloudStorageModelRegistry(
         _validate_model_name(name)
         _validate_model_name(new_name)
         model = self.get_registered_model(name)
+        if new_name == name:
+            return model
         model_proto = model.to_proto()
         model_proto.name = new_name
         src_dir = self._get_model_dir(name=name)
@@ -139,17 +141,47 @@ class GoogleCloudStorageModelRegistry(
         bucket = src_dir_blob.bucket
         src_path = src_dir_blob.name
         dst_path = dst_dir_blob.name
-        blobs: Iterator[storage.Blob] = storage.Client().list_blobs(
-            # Using bucket name as a workaround for
-            # https://github.com/googleapis/python-storage/issues/540
-            bucket_or_name=bucket.name,
-            prefix=src_path,
+        blobs: List[storage.Blob] = list(
+            storage.Client().list_blobs(
+                # Using bucket name as a workaround for
+                # https://github.com/googleapis/python-storage/issues/540
+                bucket_or_name=bucket.name,
+                prefix=src_path,
+            )
         )
+        blobs_to_delete = []
         for blob in blobs:
             assert blob.name.startswith(src_path)
-            new_path = blob.name.replace(src_path, dst_path, 1)
-            blob.bucket.rename_blob(blob, new_path)
-        return self.get_registered_model(new_name)
+            new_blob_name = blob.name.replace(src_path, dst_path, 1)
+            if blob.name.endswith("/" + self._MODEL_VERSION_INFO_FILE_NAME):
+                blobs_to_delete.append(blob)
+                model_version_proto = _json_to_registered_model_version(
+                    blob.download_as_text()
+                ).to_proto()
+                model_version_proto.name = new_name
+                self._set_model_version_proto(
+                    model_version_proto.name,
+                    model_version_proto.version,
+                    model_version_proto,
+                    update_modification_time=False,
+                )
+            elif blob.name.endswith("/" + self._LAST_MODEL_VERSION_FILE_NAME):
+                blobs_to_delete.append(blob)
+                blob.bucket.copy_blob(
+                    blob=blob, destination_bucket=blob.bucket, new_name=new_blob_name
+                )
+            elif blob.name.endswith("/" + self._MODEL_INFO_FILE_NAME):
+                blobs_to_delete.append(blob)
+
+        # _set_registered_model_proto also updates
+        # model_proto.last_updated_timestamp
+        self._set_registered_model_proto(new_name, model_proto)
+        # After we copy and update all model files, we delete the original blobs.
+        for blob in blobs_to_delete:
+            blob.delete()
+        # The blob is not available right after writing.
+        # So we cannot use get_registered_model(new_name)
+        return model_registry.RegisteredModel.from_proto(model_proto)
 
     def delete_registered_model(self, name: str) -> None:
         """Deletes the registered model.
