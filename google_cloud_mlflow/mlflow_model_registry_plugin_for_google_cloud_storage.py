@@ -357,8 +357,8 @@ class GoogleCloudStorageModelRegistry(
                 latest_versions[stage].version
             ) < int(model_version.version):
                 latest_versions[stage] = model_version
-        latest_versions_list = [latest_versions[stage] or None for stage in stages]
-        raise latest_versions_list
+        latest_versions_list = [latest_versions.get(stage) or None for stage in stages]
+        return latest_versions_list
 
     def set_registered_model_tag(
         self,
