@@ -410,7 +410,12 @@ class GoogleCloudStorageModelRegistry(
         _validate_registered_model_tag(key=tag.key, value=tag.value)
         model = self.get_registered_model(name=name)
         model_proto = model.to_proto()
-        model_proto.tags[tag.key] = tag.value
+        # model.tags is not a proper map.
+        # Deleting possible previous tag values first.
+        for existing_tag in model_proto.tags:
+            if existing_tag.key == tag.key:
+                model_proto.tags.remove(existing_tag)
+        model_proto.tags.append(tag)
         self._set_registered_model_proto(name, model_proto)
 
     def delete_registered_model_tag(self, name: str, key: str) -> None:
@@ -426,7 +431,9 @@ class GoogleCloudStorageModelRegistry(
         _validate_tag_name(name=key)
         model = self.get_registered_model(name=name)
         model_proto = model.to_proto()
-        del model_proto.tags[key]
+        for tag in model_proto.tags:
+            if tag.key == key:
+                model_proto.tags.remove(tag)
         self._set_registered_model_proto(name, model_proto)
 
     # CRUD API for ModelVersion objects
@@ -775,7 +782,12 @@ class GoogleCloudStorageModelRegistry(
         _validate_model_version_tag(tag.key, tag.value)
         model_version = self.get_model_version(name, version)
         model_version_proto = model_version.to_proto()
-        model_version_proto.tags[tag.key] = tag.value
+        # model.tags is not a proper map.
+        # Deleting possible previous tag values first.
+        for existing_tag in model_version_proto.tags:
+            if existing_tag.key == tag.key:
+                model_version_proto.tags.remove(existing_tag)
+        model_version_proto.tags.append(tag)
         self._set_model_version_proto(
             name=name, version=version, model_version_proto=model_version_proto
         )
@@ -794,7 +806,9 @@ class GoogleCloudStorageModelRegistry(
         _validate_tag_name(key)
         model_version = self.get_model_version(name, version)
         model_version_proto = model_version.to_proto()
-        del model_version_proto.tags[key]
+        for tag in model_version_proto.tags:
+            if tag.key == key:
+                model_version_proto.tags.remove(tag)
         self._set_model_version_proto(
             name=name, version=version, model_version_proto=model_version_proto
         )
