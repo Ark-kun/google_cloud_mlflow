@@ -407,6 +407,7 @@ class GoogleCloudStorageModelRegistry(
         Returns:
             None
         """
+        _validate_registered_model_tag(key=tag.key, value=tag.value)
         model = self.get_registered_model(name=name)
         model_proto = model.to_proto()
         model_proto.tags[tag.key] = tag.value
@@ -422,6 +423,7 @@ class GoogleCloudStorageModelRegistry(
         Returns:
             None
         """
+        _validate_tag_name(name=key)
         model = self.get_registered_model(name=name)
         model_proto = model.to_proto()
         del model_proto.tags[key]
