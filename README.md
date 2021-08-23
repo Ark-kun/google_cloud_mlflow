@@ -1,4 +1,4 @@
-# MLflow deployment plugin for Google Cloud Vertex AI
+# MLflow plugin for Google Cloud Vertex AI
 
 ## Installation
 
@@ -6,7 +6,7 @@
 python3 -m pip install google_cloud_mlflow
 ```
 
-## Usage
+## Deployment plugin usage
 
 ### Command-line
 
@@ -116,4 +116,12 @@ df = pandas.DataFrame([
     {"a": 4,"b": 5,"c": 6}
 ])
 predictions = client.predict("deployment name", df)
+```
+
+## Model Registry plugin usage
+
+Set the MLflow Model Registry URI to a directory in some Google Cloud Storage bucket, then log models using `mlflow.log_model` as usual.
+
+```python
+mlflow.set_registry_uri("gs://<bucket>/models/")
 ```
