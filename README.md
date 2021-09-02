@@ -55,8 +55,8 @@ mlflow deployments help --target google_cloud
 ### Python
 
 ```python
-import mlflow
-client = mlflow.get_deploy_client("google_cloud")
+from mlflow import deployments
+client = deployments.get_deploy_client("google_cloud")
 
 # Create deployment
 model_uri = "models:/mymodel/mymodelversion"

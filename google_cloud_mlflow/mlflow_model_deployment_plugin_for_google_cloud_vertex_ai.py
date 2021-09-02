@@ -72,8 +72,8 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
 
         Example::
 
-            import mlflow
-            client = mlflow.get_deploy_client("google_cloud")
+            from mlflow import deployments
+            client = deployments.get_deploy_client("google_cloud")
             deployment = client.create_deployment(
                 name="deployment name",
                 model_uri=...,
@@ -297,7 +297,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
 
         Example::
 
-            import mlflow
+            from mlflow import deployments
             import pandas
             df = pandas.DataFrame(
                 [
@@ -305,7 +305,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
                     {"a": 4,"b": 5,"c": 6}
                 ]
             )
-            client = mlflow.get_deploy_client("google_cloud")
+            client = deployments.get_deploy_client("google_cloud")
             client.create_deployment("deployment name", model_uri=...)
             predictions = client.predict("deployment name", df)
         """
@@ -332,7 +332,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
 
         Example::
 
-            import mlflow
+            from mlflow import deployments
             import pandas
             df = pandas.DataFrame(
                 [
@@ -340,7 +340,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
                     {"a": 4,"b": 5,"c": 6}
                 ]
             )
-            client = mlflow.get_deploy_client("google_cloud")
+            client = deployments.get_deploy_client("google_cloud")
             client.create_deployment("deployment name", model_uri=...)
             predictions = client.explain("deployment name", df)
         """
@@ -382,8 +382,8 @@ def target_help():
 
         Example::
 
-            import mlflow
-            client = mlflow.get_deploy_client("google_cloud")
+            from mlflow import deployments
+            client = deployments.get_deploy_client("google_cloud")
             deployment = client.create_deployment(
                 name="deployment name",
                 model_uri=...,
