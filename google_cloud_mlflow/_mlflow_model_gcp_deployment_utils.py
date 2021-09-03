@@ -40,6 +40,9 @@ import google.auth
 from google.cloud.aiplatform import gapic
 from mlflow.models import cli
 from mlflow.pyfunc import scoring_server
+from unittest import mock
+
+from . import _mlflow_models_docker_utils_patch as docker_utils_patch
 
 
 _logger = logging.getLogger(__name__)
@@ -172,16 +175,22 @@ def _build_serving_image(
     Returns:
       Fully-qualified URI of the pushed container image including the hash digest.
     """
-    _logger.info("Building image")
+    _logger.info("Building image. This can take up to 20 minutes")
     flavor_backend = cli._get_flavor_backend(
         model_uri
     )  # pylint:disable=protected-access
-    flavor_backend.build_image(
-        model_uri,
-        destination_image_uri,
-        install_mlflow=mlflow_source_dir is not None,
-        mlflow_home=mlflow_source_dir,
-    )
+
+    with mock.patch(
+        "mlflow.pyfunc.backend._build_image",
+        new=docker_utils_patch._build_image
+    ):
+        flavor_backend.build_image(
+            model_uri,
+            destination_image_uri,
+            install_mlflow=mlflow_source_dir is not None,
+            mlflow_home=mlflow_source_dir,
+        )
+    return destination_image_uri
     _logger.info("Uploading image to Google Container Registry")
 
     client = docker.from_env()
