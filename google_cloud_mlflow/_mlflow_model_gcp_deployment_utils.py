@@ -47,7 +47,7 @@ _logger = logging.getLogger(__name__)
 
 def get_fixed_mlflow_source_dir():
     """Downloads the fixed MLflow source code."""
-    fixed_mlflow_archive_url = "https://github.com/Ark-kun/mlflow/zipball/MLflow-fixes"
+    fixed_mlflow_archive_url = "https://github.com/Ark-kun/mlflow/archive/refs/heads/MLFlow-fixes.zip"
     fixed_mlflow_archive_path, _ = urllib.request.urlretrieve(url=fixed_mlflow_archive_url)
     fixed_mlflow_parent_dir = tempfile.mkdtemp(prefix="mlflow.fixed")
     with zipfile.ZipFile(fixed_mlflow_archive_path, 'r') as zip_ref:
@@ -142,10 +142,7 @@ def upload_mlflow_model_to_vertex_ai_models(
     pushed_image_uri_with_digest = _build_serving_image(
         model_uri=model_uri,
         destination_image_uri=destination_image_uri,
-        # TODO(avolkov): Remove when the fixes are merged:
-        # https://github.com/mlflow/mlflow/pull/4609
-        # https://github.com/mlflow/mlflow/pull/4611
-        mlflow_source_dir=get_fixed_mlflow_source_dir()
+        mlflow_source_dir=None,
     )
 
     upload_model_response = _upload_model(

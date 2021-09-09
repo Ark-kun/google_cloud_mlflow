@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="google_cloud_mlflow",
-    version="0.0.2-rc.1",
+    version="0.0.3",
     description="MLflow Google Cloud Vertex AI integration package",
     url="https://github.com/Ark-kun/google_cloud_mlflow",
     project_urls={
@@ -30,7 +30,7 @@ setuptools.setup(
     python_requires=">=3.6",
     install_requires=[
         "google-cloud-aiplatform>=1.3.0",
-        "mlflow~=1.19",
+        "mlflow~=1.20",
     ],
     entry_points={
         "mlflow.deployments": [
