@@ -1,6 +1,9 @@
+import logging
 import os
 import subprocess
-import logging
+import shutil
+import tempfile
+import uuid
 
 from mlflow.utils.file_utils import TempDir
 
@@ -43,7 +46,18 @@ def _build_image(image_name, entrypoint, mlflow_home=None, custom_setup_steps_ho
         _logger.info("Building docker image with name %s", image_name)
         _build_image_from_context(context_dir=cwd, image_name=image_name)
 
+
 def _build_image_from_context(context_dir: str, image_name: str):
+    return _build_image_from_context_using_cloudbuild_client(
+        context_dir=context_dir,
+        image_name=image_name,
+    )
+
+
+def _build_image_from_context_using_cloudbuild_gcloud(
+    context_dir: str,
+    image_name: str,
+):
     build_process = subprocess.Popen(
         args=["gcloud", "builds", "submit", "--tag", image_name, "--timeout", "1800", context_dir],
         stdout=subprocess.PIPE,
@@ -66,55 +80,78 @@ def _build_image_from_context(context_dir: str, image_name: str):
     if build_process.wait() != 0:
         raise RuntimeError("Container image build has failed.")
     return
+
+
+def _build_image_from_context_using_cloudbuild_client(
+    context_dir: str, image_name: str
+):
+    import google
     import google.auth
     from google.cloud import storage
     from google.cloud.devtools import cloudbuild
-    import uuid
+
+    archive_base_name = tempfile.mktemp()
+    context_archive_path = shutil.make_archive(
+        base_name=archive_base_name,
+        format="gztar",
+        root_dir=context_dir,
+    )
 
     _, project_id = google.auth.default()
 
     storage_client = storage.Client(project=project_id)
     build_client = cloudbuild.CloudBuildClient()
 
-    # TODO: Need to stage the data in GCS
+    # Staging the data in GCS
     bucket_name = project_id + "_cloudbuild"
-    
+
     bucket = storage_client.lookup_bucket(bucket_name)
     # TODO: Throw error if bucket is in different project
     if bucket is None:
         bucket = storage_client.create_bucket(bucket_name)
     blob_name = f"source/{uuid.uuid4().hex}.tgz"
 
-    context_archive_path = ...
-
-    # !!! TODO: Archive
-
     bucket.blob(blob_name).upload_from_filename(context_archive_path)
 
     build_config = cloudbuild.Build(
         source=cloudbuild.Source(
             storage_source=cloudbuild.StorageSource(
-                bucket=bucket_name,
-                object=blob_name
+                bucket=bucket_name, object_=blob_name
             ),
         ),
         images=[image_name],
         steps=[
             cloudbuild.BuildStep(
-                name='gcr.io/cloud-builders/docker',
+                name="gcr.io/cloud-builders/docker",
                 args=[
-                    'build', '--network', 'cloudbuild', '--no-cache', '-t',
-                    image_name, '.'
+                    "build",
+                    "--network",
+                    "cloudbuild",
+                    "--no-cache",
+                    "-t",
+                    image_name,
+                    ".",
                 ],
             ),
         ],
+        timeout=google.protobuf.duration_pb2.Duration(
+            seconds=1800,
+        ),
     )
-    build_client.create_build(project_id=project_id, build=cloudbuild.Build.b)
-    # trigger.build = messages.Build(steps=[
-    #     messages.BuildStep(
-    #         name='gcr.io/cloud-builders/docker',
-    #         dir=args.dockerfile_dir,
-    #         args=['build', '-t', image, '-f', args.dockerfile, '.'],
-    #     )
-    # ])
+    build_operation = build_client.create_build(
+        project_id=project_id, build=build_config
+    )
+    _logger.info("Submitted Cloud Build job")
+    _logger.debug("build_operation.metadata:")
+    _logger.debug(build_operation.metadata)
+    _logger.info(f"Logs are available at [{build_operation.metadata.build.log_url}].")
 
+    result = build_operation.result()
+    _logger.debug("operation.result")
+    _logger.debug(result)
+
+    built_image = result.results.images[0]
+    image_base_name = built_image.name.split(":")[0]
+    image_digest = built_image.digest
+    image_name_with_digest = image_base_name + "@" + image_digest
+    return image_name_with_digest
