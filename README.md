@@ -1,5 +1,7 @@
 # MLflow plugin for Google Cloud Vertex AI
 
+Note: The plugin is **experimental** and may be changed or removed in the future.
+
 ## Installation
 
 ```shell
