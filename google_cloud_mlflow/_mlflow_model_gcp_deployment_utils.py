@@ -149,7 +149,7 @@ def upload_mlflow_model_to_vertex_ai_models(
             ) from e
 
     if not destination_image_uri:
-        image_name = re.sub("[^-A-Za-z0-9_.]", "_", display_name)
+        image_name = re.sub("[^-A-Za-z0-9_.]", "_", display_name).lower()
         destination_image_uri = f"gcr.io/{project}/mlflow/{image_name}"
         _logger.info(
             "Destination image URI not set. Building and uploading image to %s",
