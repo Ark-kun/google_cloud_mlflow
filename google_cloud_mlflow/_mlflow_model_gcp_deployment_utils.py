@@ -48,13 +48,11 @@ from typing import Any, Dict, Optional
 import urllib
 import zipfile
 
-import docker
 import google
 import google.auth
 from google.cloud import aiplatform
 import mlflow
 from mlflow.models import cli
-from mlflow.pyfunc import scoring_server
 from unittest import mock
 
 from . import _mlflow_models_docker_utils_patch as docker_utils_patch
