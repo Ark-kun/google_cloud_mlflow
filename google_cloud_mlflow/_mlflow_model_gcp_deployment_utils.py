@@ -214,14 +214,30 @@ def upload_mlflow_model_to_vertex_ai_models(
         mlflow_source_dir=None,
     )
 
-    model_name = _upload_model(
-        image_uri=pushed_image_uri_with_digest,
+    uploaded_model = aiplatform.Model.upload(
+        # artifact_uri=
         display_name=display_name,
+        # description=
+        serving_container_image_uri=pushed_image_uri_with_digest,
+        # serving_container_command=
+        # serving_container_args=
+        serving_container_predict_route="/invocations",
+        serving_container_health_route="/ping",
+        # Setting environment variables to tell the scoring server to properly wrap
+        # the responses.
+        # See https://github.com/mlflow/mlflow/pull/4611
+        # https://cloud.google.com/vertex-ai/docs/predictions/custom-container-requirements#response_requirements
+        serving_container_environment_variables={
+            "PREDICTIONS_WRAPPER_ATTR_NAME": "predictions",
+        },
+        serving_container_ports=[8080],
         project=project,
         location=location,
-        model_options=model_options,
+        labels={
+            "mlflow_model_vertex_ai_deployer": "mlflow_model_vertex_ai_deployer",
+        },
     )
-    return model_name
+    return uploaded_model.resource_name
 
 
 def _build_serving_image(
@@ -272,57 +288,6 @@ def _build_serving_image(
     pushed_image_uri_with_digest = container_image.attrs["RepoDigests"][0]
     _logger.info("Uploaded image: %s", pushed_image_uri_with_digest)
     return pushed_image_uri_with_digest
-
-
-def _upload_model(
-    image_uri: str,
-    display_name: str,
-    model_options: Dict[str, Any],
-    project: str,
-    location: str,
-):
-    """Uploads the model with Google Cloud Vertex AI.
-
-    Args:
-      image_uri: The URI of the container image for the model.
-      display_name: The display name for the Google Cloud Vertex AI Model.
-        The name can be up to 128 characters long and can be consist of any UTF-8
-        characters.
-      model_options: A dict of other attributes of the Google Cloud Vertex AI
-        Model object (e.g. labels and schema). See
-          [Model](https://cloud.google.com/vertex-ai/docs/reference/rpc/google.cloud.aiplatform.v1#google.cloud.aiplatform.v1.Model).
-      project: The Google Cloud project where to push the container image and
-        register the model. If unset, uses the default project from gcloud.
-      location: The Google Cloud location where to push the container image and
-        register the model. Defaults to "us-central1".
-
-    Returns:
-      The full resource name of the Google Cloud Vertex AI Model.
-    """
-    uploaded_model = aiplatform.Model.upload(
-        # artifact_uri=
-        display_name=display_name,
-        # description=
-        serving_container_image_uri=image_uri,
-        # serving_container_command=
-        # serving_container_args=
-        serving_container_predict_route="/invocations",
-        serving_container_health_route="/ping",
-        # Setting environment variables to tell the scoring server to properly wrap
-        # the responses.
-        # See https://github.com/mlflow/mlflow/pull/4611
-        # https://cloud.google.com/vertex-ai/docs/predictions/custom-container-requirements#response_requirements
-        serving_container_environment_variables={
-            "PREDICTIONS_WRAPPER_ATTR_NAME": "predictions",
-        },
-        serving_container_ports=[8080],
-        project=project,
-        location=location,
-        labels={
-            "mlflow_model_vertex_ai_deployer": "mlflow_model_vertex_ai_deployer",
-        },
-    )
-    return uploaded_model.resource_name
 
 
 def deploy_vertex_ai_model_to_endpoint(
