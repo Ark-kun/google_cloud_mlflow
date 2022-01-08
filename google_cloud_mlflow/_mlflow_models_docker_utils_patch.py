@@ -13,52 +13,13 @@
 # limitations under the License.
 #
 import logging
-import os
 import subprocess
 import shutil
 import tempfile
 import uuid
 
-from mlflow.utils.file_utils import TempDir
-
-from mlflow.models import docker_utils
 
 _logger = logging.getLogger(__name__)
-
-DISABLE_ENV_CREATION = "MLFLOW_DISABLE_ENV_CREATION"
-
-_DOCKERFILE_TEMPLATE = docker_utils._DOCKERFILE_TEMPLATE
-
-def _build_image(image_name, entrypoint, mlflow_home=None, custom_setup_steps_hook=None):
-    """
-    Build an MLflow Docker image that can be used to serve a
-    The image is built locally and it requires Docker to run.
-
-    :param image_name: Docker image name.
-    :param entry_point: String containing ENTRYPOINT directive for docker image
-    :param mlflow_home: (Optional) Path to a local copy of the MLflow GitHub repository.
-                        If specified, the image will install MLflow from this directory.
-                        If None, it will install MLflow from pip.
-    :param custom_setup_steps_hook: (Optional) Single-argument function that takes the string path
-           of a dockerfile context directory and returns a string containing Dockerfile commands to
-           run during the image build step.
-    """
-
-    mlflow_home = os.path.abspath(mlflow_home) if mlflow_home else None
-    with TempDir() as tmp:
-        cwd = tmp.path()
-        install_mlflow = docker_utils._get_mlflow_install_step(cwd, mlflow_home)
-        custom_setup_steps = custom_setup_steps_hook(cwd) if custom_setup_steps_hook else ""
-        with open(os.path.join(cwd, "Dockerfile"), "w") as f:
-            f.write(
-                _DOCKERFILE_TEMPLATE.format(
-                    install_mlflow=install_mlflow,
-                    custom_setup_steps=custom_setup_steps,
-                    entrypoint=entrypoint,
-                )
-            )
-        _logger.info("Building docker image with name %s", image_name)
-        _build_image_from_context(context_dir=cwd, image_name=image_name)
 
 
 def _build_image_from_context(context_dir: str, image_name: str):

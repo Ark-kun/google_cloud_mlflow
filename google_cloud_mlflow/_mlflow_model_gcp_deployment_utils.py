@@ -263,8 +263,8 @@ def _build_serving_image(
     )  # pylint:disable=protected-access
 
     with mock.patch(
-        "mlflow.pyfunc.backend._build_image",
-        new=docker_utils_patch._build_image
+        "mlflow.models.docker_utils._build_image_from_context",
+        new=docker_utils_patch._build_image_from_context
     ):
         flavor_backend.build_image(
             model_uri,
