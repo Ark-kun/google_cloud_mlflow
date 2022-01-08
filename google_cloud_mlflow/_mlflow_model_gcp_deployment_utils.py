@@ -52,7 +52,6 @@ import docker
 import google
 import google.auth
 from google.cloud import aiplatform
-from google.cloud.aiplatform import gapic
 from mlflow.models import cli
 from mlflow.pyfunc import scoring_server
 from unittest import mock
@@ -163,14 +162,14 @@ def upload_mlflow_model_to_vertex_ai_models(
         mlflow_source_dir=None,
     )
 
-    upload_model_response = _upload_model(
+    model_name = _upload_model(
         image_uri=pushed_image_uri_with_digest,
         display_name=display_name,
         project=project,
         location=location,
         model_options=model_options,
-    ).result(timeout=timeout)
-    return upload_model_response.model
+    )
+    return model_name
 
 
 def _build_serving_image(
@@ -248,49 +247,30 @@ def _upload_model(
     Returns:
       The full resource name of the Google Cloud Vertex AI Model.
     """
-    # Setting environment variables to tell the scoring server to properly wrap
-    # the responses.
-    # See https://github.com/mlflow/mlflow/pull/4611
-    # https://cloud.google.com/vertex-ai/docs/predictions/custom-container-requirements#response_requirements
-    env = [
-        {
-            "name": "PREDICTIONS_WRAPPER_ATTR_NAME",
-            "value": "predictions",
-        }
-    ]
-    model_to_upload = {
-        "display_name": display_name,
-        "container_spec": {
-            "image_uri": image_uri,
-            "ports": [{"container_port": 8080}],
-            "env": env,
-            "predict_route": "/invocations",
-            "health_route": "/ping",
+    uploaded_model = aiplatform.Model.upload(
+        # artifact_uri=
+        display_name=display_name,
+        # description=
+        serving_container_image_uri=image_uri,
+        # serving_container_command=
+        # serving_container_args=
+        serving_container_predict_route="/invocations",
+        serving_container_health_route="/ping",
+        # Setting environment variables to tell the scoring server to properly wrap
+        # the responses.
+        # See https://github.com/mlflow/mlflow/pull/4611
+        # https://cloud.google.com/vertex-ai/docs/predictions/custom-container-requirements#response_requirements
+        serving_container_environment_variables={
+            "PREDICTIONS_WRAPPER_ATTR_NAME": "predictions",
         },
-    }
-    if model_options:
-        model_to_upload.update(model_options)
-    model_to_upload.setdefault("labels", {})[
-        "mlflow_model_vertex_ai_deployer"
-    ] = "mlflow_model_vertex_ai_deployer"
-
-    client_options = {
-        "api_endpoint": f"{location}-aiplatform.googleapis.com",
-    }
-
-    model_client = gapic.ModelServiceClient(client_options=client_options)
-    model_parent = f"projects/{project}/locations/{location}"
-    _logger.info(
-        "Uploading model to Google Cloud AI Platform: %s/models/%s",
-        model_parent,
-        display_name,
+        serving_container_ports=[8080],
+        project=project,
+        location=location,
+        labels={
+            "mlflow_model_vertex_ai_deployer": "mlflow_model_vertex_ai_deployer",
+        },
     )
-    upload_model_response = model_client.upload_model(
-        parent=model_parent,
-        model=model_to_upload,
-    )
-    # model: "projects/<project_id>/locations/<location>/models/<model_id>"
-    return upload_model_response
+    return uploaded_model.resource_name
 
 
 def deploy_vertex_ai_model_to_endpoint(
