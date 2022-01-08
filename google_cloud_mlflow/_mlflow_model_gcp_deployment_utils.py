@@ -52,6 +52,7 @@ import docker
 import google
 import google.auth
 from google.cloud import aiplatform
+import mlflow
 from mlflow.models import cli
 from mlflow.pyfunc import scoring_server
 from unittest import mock
@@ -147,6 +148,57 @@ def upload_mlflow_model_to_vertex_ai_models(
                 " (e.g. using gcloud config set project <PROJECT ID>. Default credentials"
                 " not found: {}".format(e.message)
             ) from e
+
+    model_dir = tempfile.mkdtemp()
+    model = mlflow.pyfunc.load_model(
+        model_uri=model_uri,
+        dst_path=model_dir,
+    )
+    for flavor_name, flavor in model.metadata.flavors.items():
+        if flavor_name == "python_function":
+            continue
+        if flavor_name == "xgboost":
+            model_file_name = flavor["data"]
+            full_xgboost_version = flavor["xgb_version"]
+            model_file_path = os.path.join(model_dir, model_file_name)
+            # TODO: Handle case when the version is not supported by Vertex AI
+            vertex_xgboost_version = ".".join(full_xgboost_version.split(".")[0:2])
+            vertex_model = aiplatform.Model.upload_xgboost_model_file(
+                model_file_path=model_file_path,
+                xgboost_version=vertex_xgboost_version,
+                display_name=display_name,
+                project=project,
+                location=location,
+            )
+            return vertex_model.resource_name
+        if flavor_name == "sklearn":
+            model_file_name = flavor["pickled_model"]
+            model_file_path = os.path.join(model_dir, model_file_name)
+            vertex_model = aiplatform.Model.upload_scikit_learn_model_file(
+                model_file_path=model_file_path,
+                # TODO: Deduce version from requirements.txt
+                # sklearn_version=
+                display_name=display_name,
+                project=project,
+                location=location,
+            )
+            return vertex_model.resource_name
+        if flavor_name == "tensorflow":
+            model_dir_name = flavor["saved_model_dir"]
+            model_dir_path = os.path.join(model_dir, model_dir_name)
+            vertex_model = aiplatform.Model.upload_tensorflow_saved_model(
+                saved_model_dir=model_dir_path,
+                # TODO: Deduce version from requirements.txt
+                # tensorflow_version=
+                display_name=display_name,
+                project=project,
+                location=location,
+            )
+            return vertex_model.resource_name
+
+    _logger.info(
+        "Model flavor is not directly supported by Vertex AI. Importing model as a custom-built container"
+    )
 
     if not destination_image_uri:
         image_name = re.sub("[^-A-Za-z0-9_.]", "_", display_name).lower()
