@@ -43,7 +43,7 @@ setuptools.setup(
     keywords='mlflow, Google Cloud, Vertex AI',
     python_requires=">=3.6",
     install_requires=[
-        "google-cloud-aiplatform>=1.3.0",
+        "google-cloud-aiplatform>=1.4.0",
         "mlflow~=1.20",
         "google-cloud-build==3.*",
         "google-cloud-storage==1.*",

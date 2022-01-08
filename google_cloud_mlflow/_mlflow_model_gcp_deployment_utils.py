@@ -51,6 +51,7 @@ import zipfile
 import docker
 import google
 import google.auth
+from google.cloud import aiplatform
 from google.cloud.aiplatform import gapic
 from mlflow.models import cli
 from mlflow.pyfunc import scoring_server
@@ -297,7 +298,7 @@ def deploy_vertex_ai_model_to_endpoint(
     endpoint_name: Optional[str] = None,
     machine_type: str = "n1-standard-2",
     min_replica_count: int = 1,
-    max_replica_count: Optional[int] = None,
+    max_replica_count: int = 1,
     endpoint_display_name: Optional[str] = None,
     deployed_model_display_name: Optional[str] = None,
     project: Optional[str] = None,
@@ -364,55 +365,29 @@ def deploy_vertex_ai_model_to_endpoint(
             model_name=model_name,
         )
     """
-    # Create an endpoint
-    # See https://github.com/googleapis/python-aiplatform/blob/master/samples/snippets/create_endpoint_sample.py
-    _, default_project = google.auth.default()
-    if not project:
-        project = default_project
-    model_id = model_name.split("/")[-1]
-
-    client_options = {
-        "api_endpoint": f"{location}-aiplatform.googleapis.com",
-    }
-    endpoint_client = gapic.EndpointServiceClient(client_options=client_options)
-    if not endpoint_name:
+    aiplatform.init(
+        project=project,
+        location=location,
+    )
+    model = aiplatform.Model(model_name)
+    if endpoint_name:
+        endpoint = aiplatform.Endpoint(endpoint_name=endpoint_name)
+    else:
+        # Model.deploy can create the Endpoint automatically, but I want to add label to the endpoint.
         if not endpoint_display_name:
-            endpoint_display_name = model_id
-        _logger.info("Creating new Endpoint: %s", endpoint_display_name)
-        endpoint_to_create = {
-            "display_name": endpoint_display_name,
-            "labels": {
+            endpoint_display_name = model.display_name[:127]
+        endpoint = aiplatform.Endpoint.create(
+            display_name=endpoint_display_name,
+            labels={
                 "mlflow_model_vertex_ai_deployer": "mlflow_model_vertex_ai_deployer",
             },
-        }
-        endpoint = endpoint_client.create_endpoint(
-            parent=f"projects/{project}/locations/{location}",
-            endpoint=endpoint_to_create,
-        ).result(timeout=timeout)
-        endpoint_name = endpoint.name
-    # projects/<prject_id>/locations/<location>/endpoints/<endpoint_id>
-    _logger.info("Endpoint name: %s", endpoint_name)
+        )
 
-    # Deploy the model
-    # See https://github.com/googleapis/python-aiplatform/blob/master/samples/snippets/deploy_model_custom_trained_model_sample.py
-    model_to_deploy = {
-        "model": model_name,
-        "display_name": deployed_model_display_name,
-        "dedicated_resources": {
-            "min_replica_count": min_replica_count,
-            "max_replica_count": max_replica_count,
-            "machine_spec": {
-                "machine_type": machine_type,
-            },
-        },
-    }
-    traffic_split = {"0": 100}
-    _logger.info(
-        "Deploying model %s to endpoint: %s", model_name, endpoint_display_name
+    return model.deploy(
+        endpoint=endpoint,
+        deployed_model_display_name=deployed_model_display_name,
+        traffic_percentage=100,
+        machine_type=machine_type,
+        min_replica_count=min_replica_count,
+        max_replica_count=max_replica_count,
     )
-    deploy_model_operation = endpoint_client.deploy_model(
-        endpoint=endpoint_name,
-        deployed_model=model_to_deploy,
-        traffic_split=traffic_split,
-    )
-    return deploy_model_operation
