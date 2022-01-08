@@ -273,21 +273,6 @@ def _build_serving_image(
             mlflow_home=mlflow_source_dir,
         )
     return destination_image_uri
-    _logger.info("Uploading image to Google Container Registry")
-
-    client = docker.from_env()
-    result = client.images.push(destination_image_uri, stream=True, decode=True)
-    for line in result:
-        # Docker client doesn't catch auth errors, so we have to do it
-        # ourselves. See https://github.com/docker/docker-py/issues/1772
-        if "errorDetail" in line:
-            raise docker.errors.APIError(line["errorDetail"]["message"])
-        if "status" in line:
-            _logger.debug(line["status"])
-    container_image = client.images.get(destination_image_uri)
-    pushed_image_uri_with_digest = container_image.attrs["RepoDigests"][0]
-    _logger.info("Uploaded image: %s", pushed_image_uri_with_digest)
-    return pushed_image_uri_with_digest
 
 
 def deploy_vertex_ai_model_to_endpoint(
