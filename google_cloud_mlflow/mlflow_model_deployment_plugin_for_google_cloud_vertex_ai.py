@@ -22,12 +22,14 @@ __all__ = [
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Any, Dict, List, Optional, Union
 
 from . import _mlflow_model_gcp_deployment_utils as vertex_utils
 from google.protobuf import json_format
 import mlflow
 from mlflow import deployments
+import numpy
+import pandas
 
 # TODO(b/195784726) Remove this workaround once google-cloud-aiplatform conforms
 # to the third_party python rules
@@ -36,11 +38,6 @@ try:
 except ImportError:
     from google.cloud.aiplatform import aiplatform  # pylint:disable=g-import-not-at-top
 
-if TYPE_CHECKING:
-    # These imports are only used to specify the parameter types and return types
-    # for the predict can explain methods.
-    import pandas  # pylint:disable=g-import-not-at-top
-    import numpy  # pylint:disable=g-import-not-at-top
 
 _logger = logging.getLogger(__name__)
 
@@ -61,6 +58,18 @@ def _resource_to_mlflow_dict(
     resource_dict["resource_name"] = resource.resource_name
     resource_dict["name"] = resource.display_name
     return resource_dict
+
+
+def _data_to_list_of_instances(
+    data: Union[list, numpy.ndarray, pandas.DataFrame]
+) -> List:
+    if isinstance(data, pandas.DataFrame):
+        return data.values.tolist()
+    if isinstance(data, numpy.ndarray):
+        return data.tolist()
+    if isinstance(data, list):
+        return data
+    raise TypeError(f"Unsupported data type {type(data)}")
 
 
 class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
@@ -293,8 +302,10 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
         )
 
     def predict(
-        self, deployment_name: str, df: "pandas.DataFrame"
-    ) -> Union["pandas.DataFrame", "pandas.Series", "numpy.ndarray", Dict[str, Any]]:
+        self,
+        deployment_name: str,
+        df: Union[List, numpy.ndarray, pandas.DataFrame],
+    ) -> Union[pandas.DataFrame, pandas.Series, numpy.ndarray, Dict[str, Any]]:
         """Computes model predictions.
 
         Compute predictions on the pandas DataFrame ``df`` using the specified
@@ -325,11 +336,15 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
         """
         endpoint = self._get_deployment(deployment_name=deployment_name)
         predictions = endpoint.predict(
-            instances=df.to_dict("records")
+            instances=_data_to_list_of_instances(df),
         )
         return predictions
 
-    def explain(self, deployment_name: str, df: "pandas.DataFrame"):
+    def explain(
+        self,
+        deployment_name: str,
+        df: Union[List, numpy.ndarray, pandas.DataFrame],
+    ) -> Union[pandas.DataFrame, pandas.Series, numpy.ndarray, Dict[str, Any]]:
         """Generates explanations of model predictions.
 
         Generate explanations of model predictions on the specified input pandas Dataframe
@@ -360,7 +375,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
         """
         endpoint = self._get_deployment(deployment_name=deployment_name)
         predictions = endpoint.explain(
-            instances=df.to_dict("records")
+            instances=_data_to_list_of_instances(df),
         )
         return predictions
 
