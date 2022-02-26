@@ -75,6 +75,22 @@ def get_fixed_mlflow_source_dir():
     return fixed_mlflow_dir
 
 
+def get_pickle_protocol(file_path: str) -> int:
+    import pickletools
+
+    max_proto = -1
+    with open(file_path, "rb") as file:
+        try:
+            for opcode, arg, _ in pickletools.genops(file):
+                if opcode.name == "PROTO":
+                    return arg
+                # Looking at the opcode.proto is not reliable since unsupported opcodes cannot be parsed by old python versions.
+                max_proto = max(max_proto, opcode.proto)
+        except:
+            pass
+    return max_proto
+    
+
 def upload_mlflow_model_to_vertex_ai_models(
     model_uri: str,
     display_name: str,
@@ -159,6 +175,11 @@ def upload_mlflow_model_to_vertex_ai_models(
             model_file_name = flavor["data"]
             full_xgboost_version = flavor["xgb_version"]
             model_file_path = os.path.join(model_dir, model_file_name)
+            # TODO: Remove after https://b.corp.google.com/issues/216705259 is fixed
+            pickle_protocol = get_pickle_protocol(model_file_path)
+            # Vertex Prediction uses Python 3.7 which does not support pickle protocol 5
+            if pickle_protocol == 5:
+                continue
             # TODO: Handle case when the version is not supported by Vertex AI
             vertex_xgboost_version = ".".join(full_xgboost_version.split(".")[0:2])
             vertex_model = aiplatform.Model.upload_xgboost_model_file(
@@ -172,6 +193,11 @@ def upload_mlflow_model_to_vertex_ai_models(
         if flavor_name == "sklearn":
             model_file_name = flavor["pickled_model"]
             model_file_path = os.path.join(model_dir, model_file_name)
+            # TODO: Remove after https://b.corp.google.com/issues/216705259 is fixed
+            pickle_protocol = get_pickle_protocol(model_file_path)
+            # Vertex Prediction uses Python 3.7 which does not support pickle protocol 5
+            if pickle_protocol == 5:
+                continue
             vertex_model = aiplatform.Model.upload_scikit_learn_model_file(
                 model_file_path=model_file_path,
                 # TODO: Deduce version from requirements.txt
