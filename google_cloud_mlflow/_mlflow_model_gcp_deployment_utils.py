@@ -52,7 +52,9 @@ import google
 import google.auth
 from google.cloud import aiplatform
 import mlflow
-from mlflow.models import cli
+from mlflow.models import cli, Model
+from mlflow.models.model import MLMODEL_FILE_NAME
+from mlflow.tracking.artifact_utils import _download_artifact_from_uri
 from unittest import mock
 
 from . import _mlflow_models_docker_utils_patch as docker_utils_patch
@@ -163,12 +165,13 @@ def upload_mlflow_model_to_vertex_ai_models(
                 " not found: {}".format(e.message)
             ) from e
 
-    model_dir = tempfile.mkdtemp()
-    model = mlflow.pyfunc.load_model(
-        model_uri=model_uri,
-        dst_path=model_dir,
+    temp_dir = tempfile.mkdtemp()
+    model_dir = _download_artifact_from_uri(
+        artifact_uri=model_uri, output_path=temp_dir,
     )
-    for flavor_name, flavor in model.metadata.flavors.items():
+    model_metadata = Model.load(os.path.join(model_dir, MLMODEL_FILE_NAME))
+
+    for flavor_name, flavor in model_metadata.flavors.items():
         if flavor_name == "python_function":
             continue
         if flavor_name == "xgboost":
