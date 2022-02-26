@@ -172,7 +172,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
             description=config.get("description"),
             encryption_spec_key_name=config.get("encryption_spec_key_name"),
             labels={
-                "google_cloud_mlflow_plugin_version": "0.0.1",
+                "google_cloud_mlflow_plugin_version": "0-0-1",
             },
         )
         endpoint.deploy(
