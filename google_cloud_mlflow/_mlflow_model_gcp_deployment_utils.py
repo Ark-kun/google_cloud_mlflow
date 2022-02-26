@@ -179,6 +179,7 @@ def upload_mlflow_model_to_vertex_ai_models(
             pickle_protocol = get_pickle_protocol(model_file_path)
             # Vertex Prediction uses Python 3.7 which does not support pickle protocol 5
             if pickle_protocol == 5:
+                _logger.warning("Detected model with pickle protocol version 5 > 4. Prebuilt containers do not support such models.")
                 continue
             # TODO: Handle case when the version is not supported by Vertex AI
             vertex_xgboost_version = ".".join(full_xgboost_version.split(".")[0:2])
@@ -197,6 +198,7 @@ def upload_mlflow_model_to_vertex_ai_models(
             pickle_protocol = get_pickle_protocol(model_file_path)
             # Vertex Prediction uses Python 3.7 which does not support pickle protocol 5
             if pickle_protocol == 5:
+                _logger.warning("Detected model with pickle protocol version 5 > 4. Prebuilt containers do not support such models.")
                 continue
             vertex_model = aiplatform.Model.upload_scikit_learn_model_file(
                 model_file_path=model_file_path,
