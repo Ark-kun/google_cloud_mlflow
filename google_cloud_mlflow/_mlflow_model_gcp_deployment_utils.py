@@ -49,7 +49,6 @@ import urllib
 import zipfile
 
 import google
-import google.auth
 from google.cloud import aiplatform
 import mlflow
 from mlflow.models import cli, Model
@@ -154,16 +153,7 @@ def upload_mlflow_model_to_vertex_ai_models(
             model_name=model_name,
         )
     """
-    if not project:
-        try:
-            _, project = google.auth.default()
-            _logger.info("Project not set. Using %s as project", project)
-        except google.auth.exceptions.DefaultCredentialsError as e:
-            raise ValueError(
-                "You must either pass a project ID in or set a default project"
-                " (e.g. using gcloud config set project <PROJECT ID>. Default credentials"
-                " not found: {}".format(e.message)
-            ) from e
+    project = project or aiplatform.initializer.global_config.project
 
     temp_dir = tempfile.mkdtemp()
     model_dir = _download_artifact_from_uri(
