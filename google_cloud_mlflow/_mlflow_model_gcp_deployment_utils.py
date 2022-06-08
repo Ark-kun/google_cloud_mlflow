@@ -99,7 +99,7 @@ def upload_mlflow_model_to_vertex_ai_models(
     destination_image_uri: Optional[str] = None,
     model_options: Optional[Dict[str, Any]] = None,
     project: Optional[str] = None,
-    location: str = "us-central1",
+    location: Optional[str] = None,
     timeout: int = 1800,
 ) -> str:
     """Builds a container for an MLflow model and registers the model with Google Cloud Vertex AI.
@@ -313,7 +313,7 @@ def deploy_vertex_ai_model_to_endpoint(
     endpoint_display_name: Optional[str] = None,
     deployed_model_display_name: Optional[str] = None,
     project: Optional[str] = None,
-    location: str = "us-central1",
+    location: Optional[str] = None,
     timeout: Optional[float] = None,
 ) -> google.api_core.operation.Operation:
     # pylint: disable=line-too-long
