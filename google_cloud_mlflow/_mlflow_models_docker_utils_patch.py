@@ -121,7 +121,14 @@ def _build_image_from_context_using_cloudbuild_client(
     _logger.debug(build_operation.metadata)
     _logger.info(f"Logs are available at [{build_operation.metadata.build.log_url}].")
 
-    result = build_operation.result()
+    try:
+        result = build_operation.result()
+    except Exception as ex:
+        _logger.error(
+            "MLFlow container image build has failed."
+            f" See Google Cloud Build logs here: {build_operation.metadata.build.log_url}"
+        )
+        raise Exception("MLFlow container image build has failed.") from ex
     _logger.debug("operation.result")
     _logger.debug(result)
 
