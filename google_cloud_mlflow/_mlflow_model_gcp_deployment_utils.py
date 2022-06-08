@@ -50,7 +50,6 @@ import zipfile
 
 import google
 from google.cloud import aiplatform
-import mlflow
 from mlflow.models import cli, Model
 from mlflow.models.model import MLMODEL_FILE_NAME
 from mlflow.tracking.artifact_utils import _download_artifact_from_uri
@@ -99,7 +98,8 @@ def upload_mlflow_model_to_vertex_ai_models(
     model_options: Optional[Dict[str, Any]] = None,
     project: Optional[str] = None,
     location: Optional[str] = None,
-    timeout: int = 1800,
+    encryption_spec_key_name: Optional[str] = None,
+    staging_bucket: Optional[str] = None,
 ) -> str:
     """Builds a container for an MLflow model and registers the model with Google Cloud Vertex AI.
 
@@ -132,8 +132,20 @@ def upload_mlflow_model_to_vertex_ai_models(
         and register the model. Defaults to the location used by the gcloud CLI.
       location: The Google Cloud location where to push the container image
         and register the model. Defaults to "us-central1".
-      timeout: How long to wait for model deployment to complete. Defaults to 30
-        minutes.
+      encryption_spec_key_name:
+        Optional. The Cloud KMS resource identifier of the customer
+        managed encryption key used to protect the model. Has the
+        form:
+        ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+        The key needs to be in the same region as where the compute
+        resource is created.
+
+        If set, this Model and all sub-resources of this Model will be secured
+        by this key.
+
+        Overrides encryption_spec_key_name set in aiplatform.init.
+      staging_bucket: Optional. Bucket to stage local model artifacts.
+        Overrides staging_bucket set in aiplatform.init.
 
     Returns:
       The full resource name of the Google Cloud Vertex AI Model.
@@ -182,6 +194,8 @@ def upload_mlflow_model_to_vertex_ai_models(
                 display_name=display_name,
                 project=project,
                 location=location,
+                encryption_spec_key_name=encryption_spec_key_name,
+                staging_bucket=staging_bucket,
             )
             return vertex_model.resource_name
         if flavor_name == "sklearn":
@@ -200,6 +214,8 @@ def upload_mlflow_model_to_vertex_ai_models(
                 display_name=display_name,
                 project=project,
                 location=location,
+                encryption_spec_key_name=encryption_spec_key_name,
+                staging_bucket=staging_bucket,
             )
             return vertex_model.resource_name
         if flavor_name == "tensorflow":
@@ -212,6 +228,8 @@ def upload_mlflow_model_to_vertex_ai_models(
                 display_name=display_name,
                 project=project,
                 location=location,
+                encryption_spec_key_name=encryption_spec_key_name,
+                staging_bucket=staging_bucket,
             )
             return vertex_model.resource_name
 
@@ -255,6 +273,8 @@ def upload_mlflow_model_to_vertex_ai_models(
         labels={
             "mlflow_model_vertex_ai_deployer": "mlflow_model_vertex_ai_deployer",
         },
+        encryption_spec_key_name=encryption_spec_key_name,
+        staging_bucket=staging_bucket,
     )
     return uploaded_model.resource_name
 
@@ -304,7 +324,6 @@ def deploy_vertex_ai_model_to_endpoint(
     deployed_model_display_name: Optional[str] = None,
     project: Optional[str] = None,
     location: Optional[str] = None,
-    timeout: Optional[float] = None,
 ) -> google.api_core.operation.Operation:
     # pylint: disable=line-too-long
     """Deploys Google Cloud Vertex AI Model to a Google Cloud Vertex AI Endpoint.
@@ -366,10 +385,6 @@ def deploy_vertex_ai_model_to_endpoint(
             model_name=model_name,
         )
     """
-    aiplatform.init(
-        project=project,
-        location=location,
-    )
     model = aiplatform.Model(model_name)
     if endpoint_name:
         endpoint = aiplatform.Endpoint(endpoint_name=endpoint_name)
@@ -382,6 +397,8 @@ def deploy_vertex_ai_model_to_endpoint(
             labels={
                 "mlflow_model_vertex_ai_deployer": "mlflow_model_vertex_ai_deployer",
             },
+            project=project,
+            location=location,
         )
 
     return model.deploy(

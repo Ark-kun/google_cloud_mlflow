@@ -79,20 +79,18 @@ deployment = client.create_deployment(
 
         # Model container image building config
         destination_image_uri=None,
-        timeout=None,
-
-        # Model deployment config
-        sync="true",
 
         # Endpoint config
-        description=None,
+        endpoint_description=None,
+        endpoint_deploy_timeout=None,
 
         # Vertex AI config
         project=None,
         location=None,
-        experiment=None,
-        experiment_description=None,
+        encryption_spec_key_name=None,
         staging_bucket=None,
+    )
+)
 
 # List deployments
 deployments = client.list_deployments()

@@ -114,19 +114,15 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
 
                     # Model container image building config
                     destination_image_uri=None,
-                    timeout=None,
-
-                    # Model deployment config
-                    sync="true",
 
                     # Endpoint config
-                    description=None,
+                    endpoint_description=None,
+                    endpoint_deploy_timeout=None,
 
                     # Vertex AI config
                     project=None,
                     location=None,
-                    experiment=None,
-                    experiment_description=None,
+                    encryption_spec_key_name=None,
                     staging_bucket=None,
                 )
             )
@@ -145,35 +141,40 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
             A dict corresponding to the created deployment, which must contain the 'name' key.
         """
         config = config or {}
-        existing_endpoints = aiplatform.Endpoint.list(filter=f'display_name="{name}"')
+
+        project = config.get("project")
+        location = config.get("location")
+        encryption_spec_key_name = config.get("encryption_spec_key_name")
+        staging_bucket = config.get("staging_bucket")
+
+        existing_endpoints = aiplatform.Endpoint.list(
+            filter=f'display_name="{name}"',
+            project=project,
+            location=location,
+        )
         if existing_endpoints:
             raise mlflow.exceptions.MlflowException(
                 f"Found existing deployment with name {name}: " +
                 ",".join(list(endpoint.resource_name for endpoint in existing_endpoints)))
 
-        aiplatform.init(
-            project=config.get("project"),
-            location=config.get("location"),
-            experiment=config.get("experiment"),
-            experiment_description=config.get("experiment_description"),
-            staging_bucket=config.get("staging_bucket"),
-            encryption_spec_key_name=config.get("encryption_spec_key_name"),
+        model_name = vertex_utils.upload_mlflow_model_to_vertex_ai_models(
+            model_uri=model_uri,
+            display_name=name,
+            destination_image_uri=config.get("destination_image_uri"),
+            project=project,
+            location=location,
+            encryption_spec_key_name=encryption_spec_key_name,
+            staging_bucket=staging_bucket,
         )
-        model_name = config.get("model_resource_name")
-        if not model_name:
-            model_name = vertex_utils.upload_mlflow_model_to_vertex_ai_models(
-                model_uri=model_uri,
-                display_name=name,
-                destination_image_uri=config.get("destination_image_uri"),
-                timeout=int(config.get("timeout", 1800)),
-            )
         endpoint = aiplatform.Endpoint.create(
             display_name=name,
-            description=config.get("description"),
-            encryption_spec_key_name=config.get("encryption_spec_key_name"),
+            description=config.get("endpoint_description"),
             labels={
                 "google_cloud_mlflow_plugin_version": "0-0-1",
             },
+            project=project,
+            location=location,
+            encryption_spec_key_name=encryption_spec_key_name,
         )
         endpoint.deploy(
             model=aiplatform.Model(model_name=model_name),
@@ -193,6 +194,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
             explanation_metadata=(json.loads(config.get("explanation_metadata")) if "explanation_metadata" in config else None),
             explanation_parameters=(json.loads(config.get("explanation_parameters")) if "explanation_parameters" in config else None),
             sync=json.loads(config.get("sync", "true")),
+            deploy_request_timeout=int(config.get("endpoint_deploy_timeout", 1800)),
         )
 
         deployment_dict = _resource_to_mlflow_dict(endpoint)
@@ -430,7 +432,6 @@ def target_help():
 
                     # Model container image building config
                     destination_image_uri=None,
-                    timeout=None,
 
                     # Model deployment config
                     sync="true",
