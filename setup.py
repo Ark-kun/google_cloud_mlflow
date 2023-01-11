@@ -54,6 +54,7 @@ setuptools.setup(
         ],
         "mlflow.model_registry_store": [
             "gs=google_cloud_mlflow.mlflow_model_registry_plugin_for_google_cloud_storage:GoogleCloudStorageModelRegistry",
+            "google-cloud-vertex-ai=google_cloud_mlflow.mlflow_model_registry_plugin_for_google_cloud_storage:GoogleCloudStorageModelRegistry",
         ],
     },
 )
