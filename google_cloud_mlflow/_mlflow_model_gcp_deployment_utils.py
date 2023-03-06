@@ -61,20 +61,6 @@ from . import _mlflow_models_docker_utils_patch as docker_utils_patch
 _logger = logging.getLogger(__name__)
 
 
-def get_fixed_mlflow_source_dir():
-    """Downloads the fixed MLflow source code."""
-    fixed_mlflow_archive_url = "https://github.com/Ark-kun/mlflow/archive/refs/heads/MLFlow-fixes.zip"
-    fixed_mlflow_archive_path, _ = urllib.request.urlretrieve(url=fixed_mlflow_archive_url)
-    fixed_mlflow_parent_dir = tempfile.mkdtemp(prefix="mlflow.fixed")
-    with zipfile.ZipFile(fixed_mlflow_archive_path, 'r') as zip_ref:
-        zip_ref.extractall(fixed_mlflow_parent_dir)
-    # The archive contains a subdirectory: "Ark-kun-mlflow-0ec4c64"
-    # So we need to go one level deeper
-    subdir = os.listdir(fixed_mlflow_parent_dir)[0]
-    fixed_mlflow_dir = os.path.join(fixed_mlflow_parent_dir, subdir)
-    return fixed_mlflow_dir
-
-
 def get_pickle_protocol(file_path: str) -> int:
     import pickletools
 
@@ -89,7 +75,7 @@ def get_pickle_protocol(file_path: str) -> int:
         except:
             pass
     return max_proto
-    
+
 
 def upload_mlflow_model_to_vertex_ai_models(
     model_uri: str,

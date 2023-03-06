@@ -217,7 +217,7 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
         return _resource_to_mlflow_dict(
             self._get_deployment(deployment_name=name)
         )
-    
+
     def _get_deployment(self, deployment_name: str) -> aiplatform.Endpoint:
         endpoints = aiplatform.Endpoint.list(filter=f'display_name="{deployment_name}"')
         if len(endpoints) > 1:
