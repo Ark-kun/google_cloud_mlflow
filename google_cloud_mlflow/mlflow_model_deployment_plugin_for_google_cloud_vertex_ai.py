@@ -104,26 +104,29 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
                 config=dict(
                     # Deployed model config
                     machine_type="n1-standard-2",
-                    min_replica_count=None,
-                    max_replica_count=None,
+                    min_replica_count=1,
+                    max_replica_count=1,
                     accelerator_type=None,
-                    accelerator_count=None,
-                    service_account=None,
-                    explanation_metadata=None, # JSON string
-                    explanation_parameters=None, # JSON string
+                    accelerator_count=0,
+                    # service_account=None,
+                    # explanation_metadata=None, # JSON string
+                    # explanation_parameters=None, # JSON string
 
                     # Model container image building config
                     destination_image_uri=None,
 
+                    # Model deployment config
+                    sync="true",
+
                     # Endpoint config
-                    endpoint_description=None,
-                    endpoint_deploy_timeout=None,
+                    endpoint_description="Model deployment",
+                    endpoint_deploy_timeout=1800,
 
                     # Vertex AI config
-                    project=None,
-                    location=None,
-                    encryption_spec_key_name=None,
-                    staging_bucket=None,
+                    # project=None,
+                    # location=None,
+                    # encryption_spec_key_name=None,
+                    # staging_bucket=None,
                 )
             )
 
@@ -422,13 +425,13 @@ def target_help():
                 config=dict(
                     # Deployed model config
                     machine_type="n1-standard-2",
-                    min_replica_count=None,
-                    max_replica_count=None,
+                    min_replica_count=1,
+                    max_replica_count=1,
                     accelerator_type=None,
-                    accelerator_count=None,
+                    accelerator_count=0,
                     service_account=None,
-                    explanation_metadata=None, # JSON string
-                    explanation_parameters=None, # JSON string
+                    # explanation_metadata=None, # JSON string
+                    # explanation_parameters=None, # JSON string
 
                     # Model container image building config
                     destination_image_uri=None,
