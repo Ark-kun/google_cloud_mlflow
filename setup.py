@@ -44,7 +44,7 @@ setuptools.setup(
     python_requires=">=3.6",
     install_requires=[
         "google-cloud-aiplatform~=1.7",
-        "mlflow~=2.71",
+        "mlflow~=2.7.1",
         "google-cloud-build==3.*",
         "google-cloud-storage==1.*",
     ],
