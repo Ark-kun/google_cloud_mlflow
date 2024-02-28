@@ -122,7 +122,7 @@ def _build_image_from_context_using_cloudbuild_client(
     _logger.info(f"Logs are available at [{build_operation.metadata.build.log_url}].")
 
     try:
-        result = build_operation.result()
+        result = build_operation.result(timeout=3600)
     except Exception as ex:
         _logger.error(
             "MLFlow container image build has failed."

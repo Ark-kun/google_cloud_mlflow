@@ -50,7 +50,8 @@ import zipfile
 
 import google
 from google.cloud import aiplatform
-from mlflow.models import cli, Model
+from mlflow.models import Model
+from mlflow.models.flavor_backend_registry import get_flavor_backend
 from mlflow.models.model import MLMODEL_FILE_NAME
 from mlflow.tracking.artifact_utils import _download_artifact_from_uri
 from unittest import mock
@@ -297,12 +298,12 @@ def _build_serving_image(
       Fully-qualified URI of the pushed container image including the hash digest.
     """
     _logger.info("Building image. This can take up to 20 minutes")
-    flavor_backend = cli._get_flavor_backend(
+    flavor_backend = get_flavor_backend(
         model_uri
     )  # pylint:disable=protected-access
 
     with mock.patch(
-        "mlflow.models.docker_utils._build_image_from_context",
+        "mlflow.models.docker_utils.build_image_from_context",
         new=docker_utils_patch._build_image_from_context
     ):
         flavor_backend.build_image(

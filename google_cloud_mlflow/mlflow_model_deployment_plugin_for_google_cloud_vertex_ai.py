@@ -338,9 +338,9 @@ class GoogleCloudVertexAiDeploymentClient(deployments.BaseDeploymentClient):
         """
         endpoint = self._get_deployment(deployment_name=deployment_name)
         predictions = endpoint.predict(
-            instances=_data_to_list_of_instances(df),
+            instances=df.to_dict(orient="records"),
         )
-        return predictions
+        return pandas.DataFrame(predictions.predictions)
 
     def explain(
         self,
